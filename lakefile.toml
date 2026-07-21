@@ -1,4 +1,4 @@
-name = "lean-ue"
+name = "lean-unclonable-enc-paulis"
 version = "0.1.0"
 defaultTargets = ["UE"]
 
