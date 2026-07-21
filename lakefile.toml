@@ -1,0 +1,17 @@
+name = "lean-ue"
+version = "0.1.0"
+defaultTargets = ["UE"]
+
+[[require]]
+name = "QIT"
+git = "https://github.com/QuAIR/Lean-QIT.git"
+rev = "d95a4cb783340d51a23b4e8885ecc9ee2bfc299a"
+
+[[lean_lib]]
+name = "UE"
+
+[[lean_lib]]
+name = "PauliConstructionAndProof"
+
+[[lean_lib]]
+name = "HaarConstructionAndProof"
