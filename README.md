@@ -20,6 +20,8 @@ The formalization includes:
 - a Pauli-to-Haar reduction establishing the same bound for suitable closed
   unitary subgroups, including the full unitary group.
 
+This formalization was made using Codex GPT-5.6 Sol.
+
 ## Lean version
 
 The project uses **Lean 4.30.0**, selected by [`lean-toolchain`](lean-toolchain):
