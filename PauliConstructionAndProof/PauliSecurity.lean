@@ -2,8 +2,8 @@ import PauliConstructionAndProof.Construction
 import PauliConstructionAndProof.PauliGamma
 import PauliConstructionAndProof.PauliOrthogonality
 import PauliConstructionAndProof.GeneralSecurity
-import PauliConstructionAndProof.RagavanSecurity
-import PauliConstructionAndProof.AnanthSahaiSecurity
+import PauliConstructionAndProof.ProofASecurity
+import PauliConstructionAndProof.ProofBSecurity
 
 /-!
 # Theorem 4.1: security of the Pauli scheme
