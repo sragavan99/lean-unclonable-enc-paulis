@@ -1,12 +1,12 @@
-import PauliConstructionAndProof.PhysicalReduction
+import PauliConstructionAndProof.Step1RicochetReduction.PhysicalReduction
 import PauliConstructionAndProof.GameOperator
 
 /-!
-# Exact physical equality with the abstract winning operator
+# §4.1: winning probability in the ricochet reduction
 
-This module keeps every transpose, register order, and dimension normalization
-explicit and proves equality, not merely an inequality, between physical
-cloning success and the normalized-Choi expectation of `Xi`.
+The success probability is the expectation of the averaged winning operator
+`Xi = (I + centeredGame)/2` on the dilated Choi state. This is the trace
+identity in equation (22) for the reflection game.
 -/
 
 open scoped ComplexOrder MatrixOrder Kronecker
@@ -96,7 +96,7 @@ theorem reflectionAttackBitEffect_average_eq_Pi (θ : κ) :
   noncomm_ring
   module
 
-/-- Exact normalized Choi/ricochet identity at a fixed key and bit. -/
+/-- Equation (19) for a fixed key and plaintext, with the local dilations. -/
 theorem reflectionAttackFixedBitProbability_eq (θ : κ) (bit : Bool) :
     ((jointPOVM (attack.bobMeasure θ) (attack.charlieMeasure θ)).prob
         (attack.pirate.applyState (reflectionCiphertextState F θ bit))
@@ -154,8 +154,8 @@ theorem reflectionAttackKeyScore_eq_trace_Pi (θ : κ) :
   rw [mul_add]
   exact hre
 
-/-- Exact equality between abstract fixed-parameter cloning success and the
-expectation of the averaged winning operator `Xi`. -/
+/-- The trace identity in equation (22) with the averaged winning operator
+`Xi` and the dilated Choi state. -/
 theorem reflectionAttackSuccess_eq_trace_Xi :
     attack.success =
       Complex.re (((reflectionAttackDilationState attack).matrix *

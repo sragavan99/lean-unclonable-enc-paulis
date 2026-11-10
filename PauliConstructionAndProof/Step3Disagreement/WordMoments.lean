@@ -1,10 +1,12 @@
-import PauliConstructionAndProof.GammaBound
+import PauliConstructionAndProof.GameOperator
+import PauliConstructionAndProof.MatrixInfrastructure
 
 /-!
-# Ordered-word moments
+# §4.3: inserting powers of the agreement operator
 
-This file expands powers of `Z = I - 2D` as finite averages of ordered words.
-No two Bob reflections and no two Charlie reflections are ever commuted.
+The proof of Proposition 4.6 expands powers of `EBC` as finite averages of
+ordered words.
+Moving the factors on disjoint registers preserves each receiver's order.
 -/
 
 open scoped BigOperators ComplexOrder MatrixOrder Matrix.Norms.L2Operator
@@ -15,7 +17,7 @@ open QIT
 
 noncomputable section
 
-universe uκ uh ub uc
+universe uκ uh
 
 /-- Matrix product in exactly the displayed list order. -/
 def orderedMatrixProduct {κ : Type uκ} {h : Type uh}
@@ -119,11 +121,11 @@ variable (G : GameOperatorData κ h)
 
 def gameBobWord (word : List κ) : CMatrix h := orderedMatrixProduct G.b word
 def gameCharlieWord (word : List κ) : CMatrix h := orderedMatrixProduct G.c word
-def gameZWord (word : List κ) : CMatrix h :=
+def gameAgreementWord (word : List κ) : CMatrix h :=
   orderedMatrixProduct (fun θ => G.b θ * G.c θ) word
 
-theorem gameZWord_eq_bobWord_mul_charlieWord (word : List κ) :
-    gameZWord G word = gameBobWord G word * gameCharlieWord G word :=
+theorem gameAgreementWord_eq_bobWord_mul_charlieWord (word : List κ) :
+    gameAgreementWord G word = gameBobWord G word * gameCharlieWord G word :=
   orderedMatrixProduct_pointwise_mul G.b G.c G.b_comm_c word
 
 theorem gameBobWord_unitary (word : List κ) :
@@ -158,9 +160,9 @@ theorem game_b_comm_C (θ φ : κ) : G.b θ * G.C φ = G.C φ * G.b θ := by
     _ = G.Q φ * (G.c φ * G.b θ) := by rw [G.b_comm_c]
     _ = (G.Q φ * G.c φ) * G.b θ := by simp [Matrix.mul_assoc]
 
-theorem game_SB_comm_charlieWord (word : List κ) :
-    G.SB * gameCharlieWord G word = gameCharlieWord G word * G.SB := by
-  rw [GameOperatorData.SB, normalizedAverage]
+theorem game_EB_comm_charlieWord (word : List κ) :
+    G.EB * gameCharlieWord G word = gameCharlieWord G word * G.EB := by
+  rw [GameOperatorData.EB, normalizedAverage]
   simp only [Matrix.smul_mul, Matrix.mul_smul]
   congr 1
   rw [Matrix.sum_mul, Matrix.mul_sum]
@@ -168,9 +170,9 @@ theorem game_SB_comm_charlieWord (word : List κ) :
   intro θ _
   exact commute_orderedMatrixProduct_right G.B G.c (game_B_comm_c G) θ word
 
-theorem game_bobWord_comm_SC (word : List κ) :
-    gameBobWord G word * G.SC = G.SC * gameBobWord G word := by
-  rw [GameOperatorData.SC, normalizedAverage]
+theorem game_bobWord_comm_EC (word : List κ) :
+    gameBobWord G word * G.EC = G.EC * gameBobWord G word := by
+  rw [GameOperatorData.EC, normalizedAverage]
   simp only [Matrix.mul_smul, Matrix.smul_mul]
   congr 1
   rw [Matrix.mul_sum, Matrix.sum_mul]
@@ -179,37 +181,37 @@ theorem game_bobWord_comm_SC (word : List κ) :
   exact (commute_orderedMatrixProduct_right G.C G.b
     (fun φ θ => (game_b_comm_C G θ φ).symm) φ word).symm
 
-/-- Exact ordered-word identity used in every moment estimate. -/
+/-- The ordered-word identity in the expansion of equation (32). -/
 theorem game_word_sandwich_identity (word : List κ) :
-    G.SB * gameBobWord G word * gameCharlieWord G word * G.SC =
-      gameCharlieWord G word * (G.SB * G.SC) * gameBobWord G word := by
+    G.EB * gameBobWord G word * gameCharlieWord G word * G.EC =
+      gameCharlieWord G word * (G.EB * G.EC) * gameBobWord G word := by
   have hBC := orderedMatrixProducts_commute G.b G.c G.b_comm_c word word
-  have hSB := game_SB_comm_charlieWord G word
-  have hSC := game_bobWord_comm_SC G word
+  have hSB := game_EB_comm_charlieWord G word
+  have hSC := game_bobWord_comm_EC G word
   have hBC' : gameBobWord G word * gameCharlieWord G word =
       gameCharlieWord G word * gameBobWord G word := by
     simpa [gameBobWord, gameCharlieWord] using hBC
   calc
-    G.SB * gameBobWord G word * gameCharlieWord G word * G.SC =
-        G.SB * (gameBobWord G word * gameCharlieWord G word) * G.SC := by
+    G.EB * gameBobWord G word * gameCharlieWord G word * G.EC =
+        G.EB * (gameBobWord G word * gameCharlieWord G word) * G.EC := by
           simp [Matrix.mul_assoc]
-    _ = G.SB * (gameCharlieWord G word * gameBobWord G word) * G.SC := by
+    _ = G.EB * (gameCharlieWord G word * gameBobWord G word) * G.EC := by
           rw [hBC']
-    _ = (G.SB * gameCharlieWord G word) * gameBobWord G word * G.SC := by
+    _ = (G.EB * gameCharlieWord G word) * gameBobWord G word * G.EC := by
           simp [Matrix.mul_assoc]
-    _ = (gameCharlieWord G word * G.SB) * gameBobWord G word * G.SC := by
+    _ = (gameCharlieWord G word * G.EB) * gameBobWord G word * G.EC := by
           rw [hSB]
-    _ = gameCharlieWord G word * G.SB * (gameBobWord G word * G.SC) := by
+    _ = gameCharlieWord G word * G.EB * (gameBobWord G word * G.EC) := by
           simp [Matrix.mul_assoc]
-    _ = gameCharlieWord G word * G.SB * (G.SC * gameBobWord G word) := by
+    _ = gameCharlieWord G word * G.EB * (G.EC * gameBobWord G word) := by
           rw [hSC]
-    _ = gameCharlieWord G word * (G.SB * G.SC) * gameBobWord G word := by
+    _ = gameCharlieWord G word * (G.EB * G.EC) * gameBobWord G word := by
           simp [Matrix.mul_assoc]
 
-/-- Every ordered word has the same norm bound as `S_B S_C`. -/
+/-- Every ordered word has the same norm bound as `E_B E_C`. -/
 theorem game_word_sandwich_norm_le {epsilon : ℝ}
-    (hbase : ‖G.SB * G.SC‖ ≤ epsilon) (word : List κ) :
-    ‖G.SB * gameBobWord G word * gameCharlieWord G word * G.SC‖ ≤ epsilon := by
+    (hbase : ‖G.EB * G.EC‖ ≤ epsilon) (word : List κ) :
+    ‖G.EB * gameBobWord G word * gameCharlieWord G word * G.EC‖ ≤ epsilon := by
   rw [game_word_sandwich_identity G word]
   have hB := gameBobWord_unitary G word
   have hC := gameCharlieWord_unitary G word
@@ -308,36 +310,20 @@ theorem normalizedAverage_pow_sandwich_norm_le
   simpa [Matrix.mul_assoc] using
     orderedWord_normalizedWordAverage_norm_le f L R hepsilon hword [] ℓ
 
-/-- The full word-moment theorem for generic game data. -/
+/-- Proposition 4.6 of arXiv:2607.21551v4 for generic game data. -/
 theorem game_word_moment_norm_le {epsilon : ℝ}
-    (hepsilon : 0 ≤ epsilon) (hbase : ‖G.SB * G.SC‖ ≤ epsilon) (ℓ : ℕ) :
-    ‖G.SB * G.Z ^ ℓ * G.SC‖ ≤ epsilon := by
+    (hepsilon : 0 ≤ epsilon) (hbase : ‖G.EB * G.EC‖ ≤ epsilon) (ℓ : ℕ) :
+    ‖G.EB * G.EBC ^ ℓ * G.EC‖ ≤ epsilon := by
   let f : κ → CMatrix h := fun θ => G.b θ * G.c θ
   have hword : ∀ word : List κ,
-      ‖G.SB * orderedMatrixProduct f word * G.SC‖ ≤ epsilon := by
+      ‖G.EB * orderedMatrixProduct f word * G.EC‖ ≤ epsilon := by
     intro word
-    change ‖G.SB * gameZWord G word * G.SC‖ ≤ epsilon
-    rw [gameZWord_eq_bobWord_mul_charlieWord G]
+    change ‖G.EB * gameAgreementWord G word * G.EC‖ ≤ epsilon
+    rw [gameAgreementWord_eq_bobWord_mul_charlieWord G]
     simpa [Matrix.mul_assoc] using game_word_sandwich_norm_le G hbase word
   have hpowers := normalizedAverage_pow_sandwich_norm_le
-    f G.SB G.SC hepsilon hword ℓ
-  simpa [f, GameOperatorData.Z] using hpowers
-
-variable {bob : Type ub} {charlie : Type uc}
-variable [Fintype bob] [DecidableEq bob] [Nonempty bob]
-variable [Fintype charlie] [DecidableEq charlie] [Nonempty charlie]
-variable {F : ReflectionFamily κ h}
-
-/-- Word moments for every generic physical attack. -/
-theorem reflectionAttack_word_moment_norm_le
-    (attack : ReflectionCloningAttack F bob charlie) (ℓ : ℕ) :
-    ‖(reflectionAttackGameData attack).SB *
-        (reflectionAttackGameData attack).Z ^ ℓ *
-        (reflectionAttackGameData attack).SC‖ ≤
-      ‖F.Gamma‖ / (Fintype.card κ : ℝ) := by
-  apply game_word_moment_norm_le
-  · exact div_nonneg (norm_nonneg _) (by positivity)
-  · exact reflectionAttack_SB_mul_SC_norm_le attack
+    f G.EB G.EC hepsilon hword ℓ
+  simpa [f, GameOperatorData.EBC] using hpowers
 
 end
 

@@ -1,26 +1,64 @@
-# lean-unclonable-enc-paulis
+# Unconditional Unclonable Encryption in Lean 4
 
-`lean-unclonable-enc-paulis` is a Lean 4 formalization of information-theoretic uncloneable-bit
-encryption. It defines an operational interface for finite-dimensional quantum
-bit-encryption schemes and cloning attacks, then gives machine-checked security
-proofs for finite-key Pauli encryption and Haar-random conjugate-subspace
-encryption.
+This repository formalises the one-bit Pauli scheme in the combined paper
+*Unconditional Unclonable Encryption* by Prabhanjan Ananth, Seyoon Ragavan, and
+Amit Sahai (ARS26). It proves perfect correctness (Lemma 3.1) and the
+information-theoretic unclonable-indistinguishability bound (Theorem 4.1).
+[ARS26, arXiv:2607.21551v4](https://arxiv.org/abs/2607.21551v4)
 
-The formalization includes:
+The two proofs of the correlation-product bound draw on the authors' independent
+original versions. [Ananth–Sahai](https://arxiv.org/abs/2607.21551v1) · [Ragavan](https://arxiv.org/abs/2607.21811v1)
 
-- key distributions, encryption and decryption families, and perfect
-  correctness;
-- key-independent pirate channels followed by key-dependent local
-  measurements;
-- the average probability that two receivers both recover the encrypted bit;
-- negligible-error and polynomial-ciphertext-dimension security definitions;
-- a finite Pauli construction with exact additive security error
-  `1/2 * sqrt (2^(n+1) / (4^(n+1) - 1))`;
-- a proof that the Pauli construction witnesses uncloneable-bit existence; and
-- a Pauli-to-Haar reduction establishing the same bound for suitable closed
-  unitary subgroups, including the full unitary group.
+The scheme samples uniformly from the `4^q - 1` nonidentity Paulis on `q`
+qubits. The ciphertext is the normalized state on the selected eigenspace
+(equation (15)), and decryption measures the corresponding projectors.
+Lean indexes the construction from zero, so `q = n + 1` for Lean's parameter
+`n`. The additive security bound is `1/2 * sqrt (2^q / (4^q - 1))`.
+The formalisation covers the state-and-channel construction. ARS26 §3.1
+describes its efficient local circuit implementation.
 
-This formalization was made using Codex GPT-5.6 Sol.
+This formalization was made using Codex GPT-5.6 Sol and GPT-6 Astra.
+
+## Proof structure
+
+| ARS26 | Lean formalisation |
+| --- | --- |
+| §2.3, Definitions 2.10–2.11 and Remark 2.12 | The fixed-message one-bit game and security interface in [UE](UE/). |
+| §3 and Lemma 3.1 | Uniform keys, eigenspace ciphertexts, decoding, and perfect correctness in [Construction.lean](PauliConstructionAndProof/Construction.lean). |
+| §4.1, Definition 4.3 and equation (22) | The ricochet reduction uses the normalized Choi identity (Theorem 2.1) and simultaneous local Naimark dilation. The dilation preserves the success probability and realizes the receivers' POVMs as projective measurements. [Reduction](PauliConstructionAndProof/Step1RicochetReduction/) · [Game operators](PauliConstructionAndProof/GameOperator.lean) |
+| §4.2.1, Proof A of Lemma 4.4 | A commutation-sign matrix factorization bounds `‖EB * EC‖`. [Proof A](PauliConstructionAndProof/Step2CorrelationProduct/ProofA/GammaBound.lean) |
+| §4.2.2, Proof B of Lemma 4.4 | Conditional overlap (Lemma 4.5) and Hilbert–Schmidt orthogonality bound the same product. [Proof B](PauliConstructionAndProof/Step2CorrelationProduct/ProofB/EndpointBound.lean) · [Conditional overlap](PauliConstructionAndProof/Step2CorrelationProduct/ProofB/ConditionalOverlap.lean) |
+| §4.3, Proposition 4.6 and Lemma 4.8 | Ordered-word estimates propagate the product bound `γ` through the disagreement filter for `D = I - EBC`. [Disagreement filter](PauliConstructionAndProof/Step3Disagreement/Filter.lean) |
+| §4.4, Lemma 4.9, Proposition 4.11, and Corollary 4.12 | The proof applies the Schur-complement bound and evaluates Corollary 4.12 on a top eigenvector of the centered game. [Shared completion](PauliConstructionAndProof/Step4Completion/Bound.lean) |
+
+### Public theorems
+
+| Result | Proof A | Proof B |
+| --- | --- | --- |
+| Abstract reflection-family security | `reflectionCloningSuccess_le_ragavan` | `reflectionCloningSuccess_le_ananthSahai` |
+| Theorem 4.1 for the Pauli scheme | `cloningSuccess_le_exact_ragavan` | `cloningSuccess_le_exact_ananthSahai` |
+| `SecureBitEncryption` | `pauliConstructionSecure_ragavan` | `pauliConstructionSecure_ananthSahai` |
+| Existence witness | `pauliConstructionProvesUncloneableBit_ragavan` | `pauliConstructionProvesUncloneableBit_ananthSahai` |
+
+The abstract theorems apply to any nonempty, uniformly sampled subset of
+nonidentity Paulis. For `K` selected keys, Proof B supplies `γ = 2^q / K`.
+Proof A can use `γ = ‖Γ‖ / K` for the sign matrix restricted to those keys.
+Both give a success bound of `1/2 + 1/2 * sqrt γ`.
+
+`pauliConstructionPerfectlyCorrect` exposes Lemma 3.1. The advantage rate
+`O(2^(-q/2))` is formalised by `pauliPaperExactCorrection_isBigO_invSqrtTwo_pow`
+and its Lean-indexed version `pauliSecurityError_isBigO_invSqrtTwo_pow`.
+The pointwise bound `pauliPaperExactCorrection_le_invSqrtTwo_pow` and the
+negligibility proof are available through the Pauli umbrella.
+
+### Haar extension
+
+The repository also proves security of Haar-random conjugate-subspace
+encryption by reducing to Theorem 4.1 via Proof A. The fixed-parameter theorem
+`haarCloningSuccess_le_exact_fixed` applies to a closed unitary subgroup
+containing the Clifford subgroup at that parameter. The family theorem
+`haarCloningSuccess_le_exact_family` supports `haarConstructionSecure`, and
+`fullUnitaryHaar_cloningSuccess_le_exact` specialises it to the full unitary group.
 
 ## Lean version
 
@@ -39,29 +77,34 @@ pinned toolchain automatically.
 Clone the repository and run the default Lake target:
 
 ```sh
+git clone https://github.com/sragavan99/lean-unclonable-enc-paulis.git
+cd lean-unclonable-enc-paulis
 lake build
 ```
 
 `lake build` downloads the locked dependencies when necessary and checks the
-public `UE` library, the Pauli construction and proof, and the Haar construction
-and proof. This repository is a proof library, not a command-line executable;
-building it is the primary way to run and verify it.
+generic `UE` interface, every Pauli and Haar proof module reachable through
+their separate umbrellas, and the examples. This repository is a proof
+library, not a command-line executable; building it is the primary way to run
+and verify it.
 
 To check only the public API smoke test, run:
 
 ```sh
-lake env lean UE/SmokeTest.lean
+lake env lean Examples/SmokeTest.lean
 ```
 
 ## Repository layout
 
 | Path | Purpose |
 | --- | --- |
-| [`UE/`](UE) | Shared public definitions and security statements. It defines encryption families, cloning attacks, cloning success, negligible error, and secure constructions. |
-| [`UE/Examples/`](UE/Examples) | Small examples showing how to instantiate the public interface. The current example is intentionally insecure and is included only as an interface demonstration. |
-| [`PauliConstructionAndProof/`](PauliConstructionAndProof) | The finite-key Pauli construction and its complete security proof, including Pauli algebra, the reflection-game reduction, matrix and norm bounds, asymptotics, and final theorem assembly. |
-| [`HaarConstructionAndProof/`](HaarConstructionAndProof) | Clifford transitivity, normalized Haar measure, the continuous-key conjugate-subspace construction, and the reduction from Pauli security to Haar security. |
-| [`UE.lean`](UE.lean) | Top-level public module importing the shared API, examples, smoke test, and the Pauli and Haar endpoints. |
+| [`UE/`](UE) | Operational definitions for one-bit unclonable encryption, finite-dimensional attacks, and negligible advantage. |
+| [`Examples/`](Examples) | An intentionally insecure interface demonstration and a public API smoke test. |
+| [`PauliConstructionAndProof/`](PauliConstructionAndProof) | The Pauli construction of §3 and the two product bounds and shared security proof of §4. |
+| [`HaarConstructionAndProof/`](HaarConstructionAndProof) | The Haar extension, including Clifford transitivity, normalized Haar measure, and the Pauli-to-Haar reduction. |
+| [`UE.lean`](UE.lean) | Public umbrella for the operational interface in `UE.Security`. |
+| [`PauliConstructionAndProof.lean`](PauliConstructionAndProof.lean) | Public Pauli umbrella. |
+| [`HaarConstructionAndProof.lean`](HaarConstructionAndProof.lean) | Public Haar umbrella. |
 | [`lakefile.toml`](lakefile.toml) | Lake package configuration and library targets. |
 | [`lake-manifest.json`](lake-manifest.json) | Reproducible lockfile containing the complete resolved dependency graph. |
 

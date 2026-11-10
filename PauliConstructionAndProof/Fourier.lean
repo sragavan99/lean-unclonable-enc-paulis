@@ -3,12 +3,11 @@ import Mathlib.Analysis.CStarAlgebra.Matrix
 import Mathlib.Analysis.InnerProductSpace.PiL2
 
 /-!
-# Symplectic Fourier matrix for Pauli labels
+# §2.1: the Pauli symplectic character matrix
 
-The full matrix of binary symplectic characters is a Walsh--Hadamard
-matrix.  This file proves its character orthogonality directly from the
-recursive Pauli-label representation, and then bounds the principal
-submatrix obtained by deleting the zero label in the matrix L2 operator norm.
+Character orthogonality gives the norm in Lemma 2.7. Restricting to the
+nonidentity key set gives the principal-submatrix estimate used in Proof A
+of Lemma 4.4.
 -/
 
 open scoped BigOperators Matrix Matrix.Norms.L2Operator
@@ -17,11 +16,11 @@ namespace UE.PauliConstructionAndProof
 
 noncomputable section
 
-/-- The full symplectic sign matrix on all phase-free Pauli labels. -/
+/-- The full symplectic character matrix `Ξ^Pauli` of Definition 2.6. -/
 def symplecticSignMatrix (q : ℕ) : Matrix (PauliLabel q) (PauliLabel q) ℂ :=
   fun v w => commutationSign (symplectic q v w)
 
-/-- The symplectic sign matrix with the identity row and column deleted. -/
+/-- The restriction of `Ξ^Pauli` to the nonidentity keys used in §4.2.1. -/
 def nonzeroSymplecticSignMatrix (q : ℕ) : Matrix (PauliKey q) (PauliKey q) ℂ :=
   fun v w => commutationSign (symplectic q v.1 w.1)
 
@@ -145,7 +144,7 @@ theorem symplecticSignMatrix_conjTranspose (q : ℕ) :
     symplecticSignMatrix_apply, symplectic_comm q w v]
   cases symplectic q v w <;> simp [commutationSign]
 
-/-- The full symplectic Fourier matrix has spectral norm `2^q`. -/
+/-- Lemma 2.7. The full symplectic character matrix has operator norm `2^q`. -/
 theorem symplecticSignMatrix_norm (q : ℕ) :
     ‖symplecticSignMatrix q‖ = ((2 ^ q : ℕ) : ℝ) := by
   classical
@@ -220,7 +219,7 @@ theorem pauliKeyInclusion_norm_le_one (q : ℕ) :
           rw [norm_one]
   nlinarith [norm_nonneg (pauliKeyInclusion q)]
 
-/-- Principal-compression bound for the nonidentity Pauli sign matrix. -/
+/-- The principal-submatrix norm bound used in Proof A of Lemma 4.4. -/
 theorem nonzeroSymplecticSignMatrix_norm_le (q : ℕ) :
     ‖nonzeroSymplecticSignMatrix q‖ ≤ ((2 ^ q : ℕ) : ℝ) := by
   classical

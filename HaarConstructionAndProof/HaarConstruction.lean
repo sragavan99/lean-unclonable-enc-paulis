@@ -4,18 +4,18 @@ import PauliConstructionAndProof.Construction
 /-!
 # Haar-random conjugate-subspace bit encryption
 
-At parameter `n` the ciphertext has `q = n+1` qubits.  A key is genuinely
-Haar-random in a chosen closed subgroup of `U(2^q)`.  The bit state is the
-uniform state on one eigenspace of the first-qubit `Z`, conjugated by the key.
-The decoder uses the conjugated eigenspace measurement.
+At Lean index `n` the ciphertext has `q = n + 1` qubits. A key follows
+normalized Haar measure on a closed subgroup of `U(2^q)`. Encryption
+conjugates the first-qubit `Z` eigenspace state and decryption measures
+the conjugated projectors.
 -/
 
 open scoped ComplexOrder MatrixOrder NNReal
 open MeasureTheory
 
-namespace UE.PauliConstructionAndProof
+namespace UE.HaarConstructionAndProof
 
-open QIT UE
+open QIT UE UE.PauliConstructionAndProof
 
 noncomputable section
 
@@ -28,10 +28,38 @@ structure HaarSubgroupFamily where
 
 /-- The full unitary groups form a Haar subgroup family. -/
 def fullUnitaryHaarFamily : HaarSubgroupFamily where
-  group n :=
+  group _ :=
     { toSubgroup := ⊤
       isClosed' := isClosed_univ }
   containsClifford _ := le_top
+
+/-- Family wrapper used to state the fixed-subgroup theorem at one selected
+parameter.  It uses the supplied subgroup at `n` and the full unitary group
+elsewhere, so no Clifford-containment hypotheses are required at unrelated
+parameters. -/
+def fixedHaarSubgroupFamily (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    HaarSubgroupFamily where
+  group m :=
+    if hm : m = n then
+      hm ▸ H
+    else
+      fullUnitaryHaarFamily.group m
+  containsClifford m := by
+    by_cases hm : m = n
+    · subst m
+      simpa using hH
+    · simp [hm, fullUnitaryHaarFamily]
+
+@[simp]
+theorem fixedHaarSubgroupFamily_group (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    (fixedHaarSubgroupFamily n H hH).group n = H := by
+  simp [fixedHaarSubgroupFamily]
 
 /-- The stored key distribution associated with normalized subgroup Haar
 measure. -/
@@ -198,6 +226,112 @@ def haarDecryption (H : HaarSubgroupFamily) :
     (haarBitEncryption H).DecryptionFamily :=
   fun n U => Channel.measure (haarPOVM H n U)
 
+/-- Encryption-family wrapper for one supplied fixed subgroup at parameter
+`n`. -/
+abbrev fixedHaarBitEncryption (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    BitEncryptionFamily :=
+  haarBitEncryption (fixedHaarSubgroupFamily n H hH)
+
+/-- Decoder wrapper matching `fixedHaarBitEncryption`. -/
+abbrev fixedHaarDecryption (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    (fixedHaarBitEncryption n H hH).DecryptionFamily :=
+  haarDecryption (fixedHaarSubgroupFamily n H hH)
+
+/-- At the selected parameter, the family wrapper's complete key
+distribution is definitionally the supplied subgroup with its normalized Haar
+measure. -/
+@[simp]
+theorem fixedHaarBitEncryption_keys (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    (fixedHaarBitEncryption n H hH).keys n =
+      haarKeyDistribution H := by
+  change haarKeyDistribution ((fixedHaarSubgroupFamily n H hH).group n) =
+    haarKeyDistribution H
+  rw [fixedHaarSubgroupFamily_group]
+
+/-- At the selected parameter, the key type is exactly the supplied closed
+subgroup. -/
+@[simp]
+theorem fixedHaarBitEncryption_keyType (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    ((fixedHaarBitEncryption n H hH).keys n).Key = H := by
+  exact congrArg KeyDistribution.Key
+    (fixedHaarBitEncryption_keys n H hH)
+
+/-- Transport a key of the supplied subgroup to the selected component of the
+family wrapper.  The following simplification lemma shows that this transport
+does not change the underlying unitary. -/
+def fixedHaarKey (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup)
+    (U : H) :
+    (fixedHaarSubgroupFamily n H hH).group n :=
+  ⟨U.1, by
+    rw [fixedHaarSubgroupFamily_group]
+    exact U.2⟩
+
+@[simp]
+theorem fixedHaarKey_coe (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup)
+    (U : H) :
+    (fixedHaarKey n H hH U).1 = U.1 := by
+  rfl
+
+/-- At the selected parameter, encryption is conjugation by the supplied
+subgroup element. -/
+@[simp]
+theorem fixedHaarBitEncryption_encrypt (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup)
+    (U : H) (b : Bool) :
+    (fixedHaarBitEncryption n H hH).encrypt n
+        (fixedHaarKey n H hH U) b =
+      conjugateState
+        (pauliCiphertextState (firstZPauliKey n) b) U.1 := by
+  simp [haarBitEncryption, haarCiphertextState]
+
+/-- The selected component stores normalized Haar measure on its closed
+subgroup.  Rewriting by `fixedHaarSubgroupFamily_group` identifies this
+subgroup with the supplied `H`; `fixedHaarBitEncryption_keys` records the
+stronger equality of the complete key distributions. -/
+@[simp]
+theorem fixedHaarBitEncryption_keyMeasure (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup) :
+    ((fixedHaarBitEncryption n H hH).keys n).μ =
+      closedSubgroupHaarMeasure
+        ((fixedHaarSubgroupFamily n H hH).group n) := by
+  rfl
+
+/-- At the selected parameter, decoding is precisely the conjugated
+first-`Z` two-outcome measurement associated with the supplied subgroup key. -/
+@[simp]
+theorem fixedHaarDecryption_apply (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup)
+    (U : H) :
+    fixedHaarDecryption n H hH n (fixedHaarKey n H hH U) =
+      Channel.measure
+        (haarPOVM (fixedHaarSubgroupFamily n H hH) n
+          (fixedHaarKey n H hH U)) := by
+  rfl
+
 private theorem coordinate_probability_after_measure_haar
     {a : Type*} [Fintype a] [DecidableEq a]
     (M : POVM Bool a) (rho : State a) (b : Bool) :
@@ -244,4 +378,4 @@ theorem haarCipherDimension_polynomiallyBounded (H : HaarSubgroupFamily) :
 
 end
 
-end UE.PauliConstructionAndProof
+end UE.HaarConstructionAndProof

@@ -8,12 +8,10 @@ import Mathlib.LinearAlgebra.UnitaryGroup
 import Mathlib.Tactic
 
 /-!
-# Pauli construction: phase-free Hermitian matrices
+# §2.1: phase-free Pauli operators
 
-This file develops the finite Pauli algebra needed by the construction.  Labels
-and computational-basis indices are recursive tensor powers.  The matrices are
-first defined on that transparent recursive basis and are then transported to
-the public register `Fin (2 ^ q)` by a basis equivalence.
+The Pauli identities of Proposition 2.3 and the commutation law of Lemma 2.5
+are proved on a recursive tensor basis and transported to `Fin (2 ^ q)`.
 
 The one-qubit label `(x,z)` denotes `I`, `X`, `Z`, or `Y` in the order
 `(0,0)`, `(1,0)`, `(0,1)`, `(1,1)`.  In particular, every represented Pauli is
@@ -43,7 +41,7 @@ def zeroLabel : (q : ℕ) → PauliLabel q
   | 0 => PUnit.unit
   | q + 1 => ((false, false), zeroLabel q)
 
-/-- The nonidentity phase-free Pauli labels used as encryption keys. -/
+/-- The nonidentity Pauli key set of Definition 4.2. -/
 abbrev PauliKey (q : ℕ) := {v : PauliLabel q // v ≠ zeroLabel q}
 
 /-- The sign character of one binary bit. -/
@@ -450,8 +448,8 @@ theorem pauliKey_trace_eq_zero {q : ℕ} (v : PauliKey q) :
     (pauli v.1).trace = 0 :=
   pauli_trace_eq_zero v.2
 
-/-- Exact Pauli Hilbert--Schmidt orthogonality:
-`Tr(P_v P_w) = 2^q` for equal labels and zero otherwise. -/
+/-- Hilbert--Schmidt orthogonality in equation (13) of Proposition 2.3.
+The trace is `2^q` for equal labels and zero otherwise. -/
 theorem pauli_mul_trace {q : ℕ} (v w : PauliLabel q) :
     (pauli v * pauli w).trace =
       if v = w then (2 : ℂ) ^ q else 0 := by
@@ -465,7 +463,7 @@ theorem pauli_mul_trace {q : ℕ} (v w : PauliLabel q) :
       (rawPauli q v * rawPauli q w)).trace = _
   rw [trace_reindex_equiv, rawPauli_mul_trace]
 
-/-- The Pauli commutation law with its binary symplectic sign. -/
+/-- The Pauli commutation law with its binary symplectic sign (Lemma 2.5). -/
 theorem pauli_commutation {q : ℕ} (v w : PauliLabel q) :
     pauli v * pauli w =
       commutationSign (symplectic q v w) • (pauli w * pauli v) := by
@@ -473,11 +471,8 @@ theorem pauli_commutation {q : ℕ} (v w : PauliLabel q) :
     (rawPauli_commutation q v w)
   simpa [pauli, Matrix.reindexAlgEquiv_apply] using h
 
-/-- Transposition preserves the symplectic commutation-sign relation.
-
-This deliberately does not assert that an individual Pauli is fixed by
-transpose: every `Y` tensor factor contributes a minus sign.
--/
+/-- The transposed-Pauli commutation law of Lemma 2.5. Each `Y` tensor factor
+contributes a sign under transposition, and the commutation sign is preserved. -/
 theorem pauli_transpose_commutation {q : ℕ} (v w : PauliLabel q) :
     Matrix.transpose (pauli v) * Matrix.transpose (pauli w) =
       commutationSign (symplectic q v w) •

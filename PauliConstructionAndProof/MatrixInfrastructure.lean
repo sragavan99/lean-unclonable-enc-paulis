@@ -4,10 +4,10 @@ import Mathlib.Analysis.CStarAlgebra.Matrix
 import Mathlib.Tactic
 
 /-!
-# Abstract proof: matrix infrastructure for the reflection argument
+# Operator-norm estimates for the correlation-product proofs
 
-Only the operator-norm, block-family, and finite-dimensional order lemmas used
-by the current proof live here.  All norms are the matrix L2 operator norm.
+Block row, block column, and tensor-product norm estimates support both
+proofs of Lemma 4.4. The norm is the matrix L2 operator norm.
 -/
 
 open scoped BigOperators ComplexOrder MatrixOrder Matrix.Norms.L2Operator
@@ -111,6 +111,59 @@ theorem matrixFamilyBlockColumn_conjTranspose_mul
       rw [(hf θ).1]
     _ = (((Fintype.card κ : ℕ) : ℂ) • (1 : CMatrix h)) i j := by simp
 
+/-- Gram identity for a vertical column of arbitrary square blocks. -/
+theorem matrixFamilyBlockColumn_conjTranspose_mul_general
+    {κ : Type uκ} {h : Type uh}
+    [Fintype κ] [Fintype h] [DecidableEq h]
+    (f : κ → CMatrix h) :
+    Matrix.conjTranspose (matrixFamilyBlockColumn f) *
+        matrixFamilyBlockColumn f =
+      ∑ θ, Matrix.conjTranspose (f θ) * f θ := by
+  classical
+  ext i j
+  rw [Matrix.mul_apply, Fintype.sum_prod_type]
+  simp only [matrixFamilyBlockColumn, Matrix.conjTranspose_apply,
+    Matrix.sum_apply]
+  apply Finset.sum_congr rfl
+  intro θ _
+  rw [Matrix.mul_apply]
+  simp only [Matrix.conjTranspose_apply]
+
+/-- Cross-Gram identity for two vertical columns with the same block index. -/
+theorem matrixFamilyBlockColumn_conjTranspose_mul_cross
+    {κ : Type uκ} {h : Type uh}
+    [Fintype κ] [Fintype h] [DecidableEq h]
+    (f g : κ → CMatrix h) :
+    Matrix.conjTranspose (matrixFamilyBlockColumn f) *
+        matrixFamilyBlockColumn g =
+      ∑ θ, Matrix.conjTranspose (f θ) * g θ := by
+  classical
+  ext i j
+  rw [Matrix.mul_apply, Fintype.sum_prod_type]
+  simp only [matrixFamilyBlockColumn, Matrix.conjTranspose_apply,
+    Matrix.sum_apply]
+  apply Finset.sum_congr rfl
+  intro θ _
+  rw [Matrix.mul_apply]
+  simp only [Matrix.conjTranspose_apply]
+
+/-- The norm of a vertical block column is the square root of the norm of
+the sum of its block Gram matrices. -/
+theorem matrixFamilyBlockColumn_norm_general
+    {κ : Type uκ} {h : Type uh}
+    [Fintype κ] [DecidableEq κ] [Nonempty κ]
+    [Fintype h] [DecidableEq h] [Nonempty h]
+    (f : κ → CMatrix h) :
+    ‖matrixFamilyBlockColumn f‖ =
+      Real.sqrt ‖∑ θ, Matrix.conjTranspose (f θ) * f θ‖ := by
+  have hsquare := Matrix.l2_opNorm_conjTranspose_mul_self
+    (matrixFamilyBlockColumn f)
+  rw [matrixFamilyBlockColumn_conjTranspose_mul_general] at hsquare
+  have hsqrt := Real.sq_sqrt
+    (norm_nonneg (∑ θ, Matrix.conjTranspose (f θ) * f θ))
+  nlinarith [norm_nonneg (matrixFamilyBlockColumn f),
+    Real.sqrt_nonneg ‖∑ θ, Matrix.conjTranspose (f θ) * f θ‖]
+
 /-- Exact norm of a horizontal row of unitary blocks. -/
 theorem matrixFamilyBlockRow_norm
     {κ : Type uκ} {h : Type uh}
@@ -206,6 +259,51 @@ theorem matrixAmplification_norm
     ‖Matrix.kronecker A (1 : CMatrix h)‖ = ‖A‖ := by
   exact NonUnitalStarAlgHom.norm_map (matrixAmplificationStarAlgHom κ h)
     (matrixAmplificationStarAlgHom_injective κ h) A
+
+/-- Amplification on the left spectator factor, `A ↦ I ⊗ A`. -/
+def matrixIdentityTensorStarAlgHom
+    (κ : Type uκ) (h : Type uh)
+    [Fintype κ] [DecidableEq κ] [Fintype h] [DecidableEq h] :
+    CMatrix h →⋆ₐ[ℂ] CMatrix (κ × h) where
+  toFun A := Matrix.kronecker (1 : CMatrix κ) A
+  map_zero' := Matrix.kronecker_zero _
+  map_one' := Matrix.one_kronecker_one
+  map_add' A B := Matrix.kronecker_add 1 A B
+  map_mul' A B := by
+    simpa using Matrix.mul_kronecker_mul
+      (1 : CMatrix κ) (1 : CMatrix κ) A B
+  commutes' z := by
+    rw [Algebra.algebraMap_eq_smul_one, Algebra.algebraMap_eq_smul_one]
+    ext ⟨i, k⟩ ⟨j, l⟩
+    by_cases hij : i = j <;> by_cases hkl : k = l <;>
+      simp [Matrix.kronecker, Matrix.kroneckerMap_apply,
+        Matrix.smul_apply, hij, hkl]
+  map_star' A := by
+    rw [Matrix.star_eq_conjTranspose, Matrix.star_eq_conjTranspose]
+    simpa using
+      (Matrix.conjTranspose_kronecker (1 : CMatrix κ) A).symm
+
+theorem matrixIdentityTensorStarAlgHom_injective
+    (κ : Type uκ) (h : Type uh)
+    [Fintype κ] [DecidableEq κ] [Nonempty κ]
+    [Fintype h] [DecidableEq h] :
+    Function.Injective (matrixIdentityTensorStarAlgHom κ h) := by
+  intro A B hAB
+  let i : κ := Classical.choice (inferInstance : Nonempty κ)
+  ext k l
+  have hentry := congrArg
+    (fun M : CMatrix (κ × h) => M (i, k) (i, l)) hAB
+  simpa [matrixIdentityTensorStarAlgHom, Matrix.kronecker,
+    Matrix.kroneckerMap_apply] using hentry
+
+/-- Exact L2-operator-norm preservation under `A ↦ I ⊗ A`. -/
+theorem matrixIdentityTensor_norm
+    (κ : Type uκ) (h : Type uh)
+    [Fintype κ] [DecidableEq κ] [Nonempty κ]
+    [Fintype h] [DecidableEq h] (A : CMatrix h) :
+    ‖Matrix.kronecker (1 : CMatrix κ) A‖ = ‖A‖ := by
+  exact NonUnitalStarAlgHom.norm_map (matrixIdentityTensorStarAlgHom κ h)
+    (matrixIdentityTensorStarAlgHom_injective κ h) A
 
 end
 

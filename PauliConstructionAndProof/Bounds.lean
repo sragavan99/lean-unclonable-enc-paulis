@@ -2,14 +2,14 @@ import PauliConstructionAndProof.Asymptotic
 import Mathlib.Tactic
 
 /-!
-# Scalar bounds for the Pauli correction term
+# Advantage bounds for Theorem 4.1
 -/
 
 namespace UE.PauliConstructionAndProof
 
 noncomputable section
 
-/-- The exact additive correction supplied by the operator argument. -/
+/-- The additive advantage bound in equation (17) at Lean index `n`. -/
 def pauliExactCorrection (n : ℕ) : ℝ :=
   (2 : ℝ)⁻¹ * Real.sqrt
     (((2 : ℝ) ^ (n + 1)) / ((4 : ℝ) ^ (n + 1) - 1))
@@ -104,6 +104,80 @@ theorem pauliExactCorrection_nonneg (n : ℕ) :
     0 ≤ pauliExactCorrection n := by
   unfold pauliExactCorrection
   positivity
+
+/-- The additive advantage bound in equation (17) indexed by the
+paper's positive qubit count `m`. -/
+def pauliPaperExactCorrection (m : ℕ) : ℝ :=
+  (2 : ℝ)⁻¹ * Real.sqrt
+    (((2 : ℝ) ^ m) / ((4 : ℝ) ^ m - 1))
+
+/-- At qubit count `m ≥ 1`, the additive bound in Theorem 4.1 is at most
+`(1/sqrt 2)^(m+1)`. -/
+theorem pauliPaperExactCorrection_le_invSqrtTwo_pow
+    (m : ℕ) (hm : 1 ≤ m) :
+    pauliPaperExactCorrection m ≤
+      ((1 : ℝ) / Real.sqrt 2) ^ (m + 1) := by
+  obtain ⟨n, rfl⟩ := Nat.exists_eq_add_of_le hm
+  rw [Nat.add_comm 1 n]
+  change pauliExactCorrection n ≤
+    ((1 : ℝ) / Real.sqrt 2) ^ (n + 1 + 1)
+  let b : ℝ := (1 : ℝ) / Real.sqrt 2
+  have hbnonneg : 0 ≤ b := by
+    dsimp [b]
+    positivity
+  have hbSq : b ^ 2 = (2 : ℝ)⁻¹ := by
+    dsimp [b]
+    rw [div_pow, one_pow, Real.sq_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
+    norm_num
+  have hratio := pauli_ratio_le_half_pow n
+  have hleft : 0 ≤ pauliExactCorrection n :=
+    pauliExactCorrection_nonneg n
+  have hright : 0 ≤ b ^ (n + 2) := pow_nonneg hbnonneg _
+  apply (sq_le_sq₀ hleft hright).mp
+  calc
+    pauliExactCorrection n ^ 2 =
+        (4 : ℝ)⁻¹ *
+          (((2 : ℝ) ^ (n + 1)) /
+            ((4 : ℝ) ^ (n + 1) - 1)) := by
+      rw [pauliExactCorrection, mul_pow,
+        Real.sq_sqrt (by
+          exact div_nonneg (by positivity) (pauli_denominator_pos n).le)]
+      norm_num
+    _ ≤ (4 : ℝ)⁻¹ * ((2 : ℝ)⁻¹) ^ n := by
+      gcongr
+    _ = (b ^ (n + 2)) ^ 2 := by
+      rw [pow_two, ← mul_pow, ← pow_two, hbSq, pow_add]
+      norm_num
+      ring
+
+/-- The advantage bound in Theorem 4.1 has rate
+`1/2 sqrt(2^m/(4^m-1)) = O(2^{-m/2})`.
+
+The comparison function `(1/sqrt 2)^m` is exactly `2^{-m/2}`.
+-/
+theorem pauliPaperExactCorrection_isBigO_invSqrtTwo_pow :
+    Asymptotics.IsBigO Filter.atTop pauliPaperExactCorrection
+      (fun m : ℕ => ((1 : ℝ) / Real.sqrt 2) ^ m) := by
+  apply Asymptotics.IsBigO.of_bound 1
+  refine (Filter.eventually_ge_atTop (α := ℕ) 1).mono ?_
+  intro m hm
+  rw [Real.norm_eq_abs, abs_of_nonneg (by
+    dsimp [pauliPaperExactCorrection]
+    positivity)]
+  rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
+  have hpoint := pauliPaperExactCorrection_le_invSqrtTwo_pow m hm
+  have hb : (1 : ℝ) / Real.sqrt 2 ≤ 1 := by
+    have hsqrt :=
+      Real.one_le_sqrt.mpr (by norm_num : (1 : ℝ) ≤ 2)
+    exact (div_le_one (Real.sqrt_pos.2 (by norm_num))).2 hsqrt
+  have hnonneg : 0 ≤ (1 : ℝ) / Real.sqrt 2 := by positivity
+  calc
+    pauliPaperExactCorrection m ≤
+        ((1 : ℝ) / Real.sqrt 2) ^ (m + 1) := hpoint
+    _ ≤ ((1 : ℝ) / Real.sqrt 2) ^ m := by
+      rw [pow_succ]
+      exact mul_le_of_le_one_right (pow_nonneg hnonneg m) hb
+    _ = 1 * ((1 : ℝ) / Real.sqrt 2) ^ m := by ring
 
 end
 

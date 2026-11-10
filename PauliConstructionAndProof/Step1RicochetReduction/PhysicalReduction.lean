@@ -1,12 +1,13 @@
 import PauliConstructionAndProof.ReflectionConstruction
-import PauliConstructionAndProof.ChoiNaimark
+import PauliConstructionAndProof.Step1RicochetReduction.ChoiNaimark
 
 /-!
-# Generic ricochet and simultaneous-Naimark reduction
+# §4.1: decoding observables in the dilated ricochet reduction
 
-An arbitrary fixed-parameter attack on a reflection construction is converted
-to one normalized Choi state and three families of Hermitian reflections on a
-common finite Hilbert space.  Only cross-party commutation is established.
+The transposed encoding observables of Definition 4.2 act on the reference
+register. Simultaneous local Naimark dilation realizes the receiver POVMs
+as projective measurements, giving three families of reflections with
+cross-party commutation.
 -/
 
 open scoped ComplexOrder MatrixOrder Kronecker
@@ -70,7 +71,7 @@ abbrev ReflectionAttackBobSpace := POVM.FamilyNaimarkSpace attack.bobMeasure
 /-- Charlie's common finite-family Naimark space. -/
 abbrev ReflectionAttackCharlieSpace := POVM.FamilyNaimarkSpace attack.charlieMeasure
 
-/-- Common Alice--Bob--Charlie Hilbert-space basis after dilation. -/
+/-- Basis of the joint reference--Bob--Charlie space after dilation. -/
 abbrev ReflectionAttackHilbert :=
   h × (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack)
 
@@ -87,7 +88,8 @@ def reflectionAttackDilationState : State (ReflectionAttackHilbert attack) :=
   spectatorReceiverLift attack.bobMeasure attack.charlieMeasure
     (normalizedChoi attack.pirate)
 
-/-- Alice's transposed encoding reflection on the common space. -/
+/-- The transposed encoding observable `Θₖ` of equation (23), lifted to
+the common space. -/
 def reflectionAttackAlice (θ : κ) : CMatrix (ReflectionAttackHilbert attack) :=
   Matrix.kronecker (Matrix.transpose (F.Q θ))
     (1 : CMatrix
@@ -165,7 +167,7 @@ theorem reflectionAttackCharlie_mul_self (θ : κ) :
     binaryProjectiveReflection_mul_self]
   simp
 
-/-- Alice and Bob commute for every pair of settings. -/
+/-- The reference and Bob observables commute for every pair of keys. -/
 theorem reflectionAttackAlice_commute_bob (θ φ : κ) :
     reflectionAttackAlice attack θ * reflectionAttackBob attack φ =
       reflectionAttackBob attack φ * reflectionAttackAlice attack θ := by
@@ -183,7 +185,7 @@ theorem reflectionAttackAlice_commute_bob (θ φ : κ) :
   rw [← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul]
   simp
 
-/-- Alice and Charlie commute for every pair of settings. -/
+/-- The reference and Charlie observables commute for every pair of keys. -/
 theorem reflectionAttackAlice_commute_charlie (θ φ : κ) :
     reflectionAttackAlice attack θ * reflectionAttackCharlie attack φ =
       reflectionAttackCharlie attack φ * reflectionAttackAlice attack θ := by
@@ -220,31 +222,6 @@ theorem reflectionAttackBob_commute_charlie (θ φ : κ) :
   rw [← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
     ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul]
   simp
-
-/-- Transposition reverses the index orientation: the scalar for
-`Q_θᵀ Q_φᵀ` is `Gamma φ θ`. -/
-theorem reflectionAttackAlice_commutation (θ φ : κ) :
-    reflectionAttackAlice attack θ * reflectionAttackAlice attack φ =
-      F.Gamma φ θ •
-        (reflectionAttackAlice attack φ * reflectionAttackAlice attack θ) := by
-  let Qθ := Matrix.transpose (F.Q θ)
-  let Qφ := Matrix.transpose (F.Q φ)
-  change
-    (Qθ ⊗ₖ (1 : CMatrix
-      (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))) *
-        (Qφ ⊗ₖ (1 : CMatrix
-          (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))) =
-      F.Gamma φ θ •
-        ((Qφ ⊗ₖ (1 : CMatrix
-          (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))) *
-          (Qθ ⊗ₖ (1 : CMatrix
-            (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))))
-  rw [← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul]
-  have htranspose := congrArg Matrix.transpose (F.commutation φ θ)
-  have hQ : Qθ * Qφ = F.Gamma φ θ • (Qφ * Qθ) := by
-    simpa [Qθ, Qφ, Matrix.transpose_mul, Matrix.transpose_smul] using htranspose
-  rw [hQ]
-  simp [Matrix.smul_kronecker]
 
 /-- The dilated local product effect has the two-reflection form. -/
 theorem reflectionAttackDilatedProductEffect_eq (θ : κ) (b : Bool) :

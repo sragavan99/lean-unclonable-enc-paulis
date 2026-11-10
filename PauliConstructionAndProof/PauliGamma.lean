@@ -1,13 +1,13 @@
 import PauliConstructionAndProof.Fourier
-import PauliConstructionAndProof.ReflectionConstruction
+import PauliConstructionAndProof.PauliReflectionFamily
+import PauliConstructionAndProof.Step2CorrelationProduct.ProofA.CommutationData
 
 /-!
-# The full-Pauli reflection family and exact Gamma norm
+# The commutation-sign matrix for Proof A
 
-The deleted symplectic character matrix satisfies the paper's identity
-`4^q I = 11ᵀ + Gamma²`.  Evaluating it on the difference of two explicit
-nonidentity labels supplies the lower norm bound matching the compression
-upper bound.
+The commutation-sign matrix `Gamma` is the principal submatrix of
+`Ξ^Pauli` on the nonidentity keys. Its norm equals `2^q` for positive `q`,
+strengthening the upper bound used in §4.2.1.
 -/
 
 open scoped BigOperators Matrix MatrixOrder Matrix.Norms.L2Operator
@@ -21,7 +21,7 @@ noncomputable section
 /-- The square all-ones matrix. -/
 def constantOneMatrix (a : Type*) : Matrix a a ℂ := fun _ _ => 1
 
-/-- The paper's exact identity on the nonzero-label space. -/
+/-- The square of the restricted sign matrix is `4^q I - 11ᵀ`. -/
 theorem nonzeroSymplecticSignMatrix_square_identity (q : ℕ) :
     (((4 ^ q : ℕ) : ℂ) • (1 : CMatrix (PauliKey q))) =
       constantOneMatrix (PauliKey q) +
@@ -126,7 +126,7 @@ theorem nonzeroSymplecticSignMatrix_square_mul_differenceColumn (q : ℕ) :
   simpa [Matrix.add_mul, Matrix.smul_mul,
     allOnes_mul_pauliGammaDifferenceColumn q] using h.symm
 
-/-- Exact current-paper norm of the nonidentity Pauli commutation matrix. -/
+/-- The nonidentity Pauli sign matrix has norm `2^(q + 1)`. -/
 theorem nonzeroSymplecticSignMatrix_norm (q : ℕ) :
     ‖nonzeroSymplecticSignMatrix (q + 1)‖ =
       ((2 ^ (q + 1) : ℕ) : ℝ) := by
@@ -165,26 +165,22 @@ theorem nonzeroSymplecticSignMatrix_norm (q : ℕ) :
   have hupper := nonzeroSymplecticSignMatrix_norm_le (q + 1)
   exact le_antisymm hupper hlower
 
-/-- The full nonidentity-Pauli family as abstract reflection data. -/
-def pauliReflectionFamily (q : ℕ) :
-    ReflectionFamily (PauliKey q) (Fin (2 ^ q)) where
-  Q k := pauli k.1
+/-- Commutation data for Proof A of Lemma 4.4 on the Pauli key set. -/
+def pauliRagavanData (q : ℕ) : RagavanData (pauliReflectionFamily q) where
   Gamma := nonzeroSymplecticSignMatrix q
-  Q_hermitian k := pauli_isHermitian k.1
-  Q_involution k := pauli_mul_self k.1
-  Q_trace_zero k := pauliKey_trace_eq_zero k
   commutation φ θ := pauli_commutation φ.1 θ.1
 
 @[simp]
-theorem pauliReflectionFamily_Gamma (q : ℕ) :
-    (pauliReflectionFamily q).Gamma = nonzeroSymplecticSignMatrix q := rfl
+theorem pauliRagavanData_Gamma (q : ℕ) :
+    (pauliRagavanData q).Gamma = nonzeroSymplecticSignMatrix q := rfl
 
-/-- The abstract Gamma ratio at Lean parameter `n` in real-power notation. -/
-theorem pauliReflectionFamily_Gamma_ratio (n : ℕ) :
-    ‖(pauliReflectionFamily (n + 1)).Gamma‖ /
+/-- For the full nonidentity key set, the Proof A ratio `‖Gamma‖ / K`
+equals `d / K` at Lean index `n`. -/
+theorem pauliRagavanData_Gamma_ratio (n : ℕ) :
+    ‖(pauliRagavanData (n + 1)).Gamma‖ /
         (Fintype.card (PauliKey (n + 1)) : ℝ) =
       (2 : ℝ) ^ (n + 1) / ((4 : ℝ) ^ (n + 1) - 1) := by
-  rw [pauliReflectionFamily_Gamma, nonzeroSymplecticSignMatrix_norm n]
+  rw [pauliRagavanData_Gamma, nonzeroSymplecticSignMatrix_norm n]
   norm_num [Nat.cast_sub (by
     have : 1 ≤ 4 ^ (n + 1) := one_le_pow₀ (by omega)
     exact this)]

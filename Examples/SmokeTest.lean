@@ -1,4 +1,4 @@
-import UE.Examples.InterfaceDemo
+import Examples.InterfaceDemo
 
 /-! # Public API smoke test -/
 
