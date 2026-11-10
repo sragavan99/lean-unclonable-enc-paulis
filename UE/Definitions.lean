@@ -2,11 +2,11 @@ import QIT.Classical.Bridge
 import Mathlib.MeasureTheory.Integral.Bochner.Basic
 
 /-!
-# Uncloneable-bit encryption: operational definitions
+# Operational definitions for one-bit unclonable encryption
 
-This module gives the finite-dimensional quantum interface for an encrypted bit,
-key-dependent decryption, and information-theoretic cloning attacks.  It contains
-no construction and makes no security assertion.
+The interface models the fixed-message one-bit game of Definition 2.10 and
+Remark 2.12 in arXiv:2607.21551v4. Key distributions are probability measures,
+which also allow the continuous keys of the Haar extension.
 -/
 
 open scoped BigOperators NNReal
@@ -105,7 +105,7 @@ theorem jointPOVM_effects {x y a b : Type*} [Fintype x] [Fintype y]
       Matrix.kronecker (M.effects outcome.1) (N.effects outcome.2) :=
   rfl
 
-/-- The product-POVM probability is the paper's joint Born-rule trace formula. -/
+/-- The joint Born probability used in equation (18) of §4.1. -/
 theorem jointPOVM_prob_eq_trace_re {x y a b : Type*} [Fintype x] [DecidableEq x]
     [Fintype y] [DecidableEq y] [Fintype a] [DecidableEq a]
     [Fintype b] [DecidableEq b] (M : POVM x a) (N : POVM y b)
@@ -115,7 +115,7 @@ theorem jointPOVM_prob_eq_trace_re {x y a b : Type*} [Fintype x] [DecidableEq x]
         ρ.matrix).trace) := by
   rw [POVM.prob_eq_trace_re, jointPOVM_effects, Matrix.trace_mul_comm]
 
-/-- A finite-dimensional cloning attack after the ciphertext has been fixed.
+/-- A finite-dimensional attack in the fixed-message one-bit game.
 
 The pirate channel has no key argument, so the split occurs before key reveal.
 The two local POVMs are functions of the key and can therefore be selected after
@@ -259,7 +259,7 @@ theorem keyScore_integrable (T : CloningAttack E n) :
 
 end CloningAttack
 
-/-- Average cloning success over the scheme's genuine key probability measure. -/
+/-- Winning probability in the one-bit game, averaged over the key distribution. -/
 def cloningSuccess {E : BitEncryptionFamily} {n : ℕ} (T : CloningAttack E n) : ℝ :=
   letI := (E.keys n).measurableSpace
   ∫ k, T.keyScore k ∂(E.keys n).μ

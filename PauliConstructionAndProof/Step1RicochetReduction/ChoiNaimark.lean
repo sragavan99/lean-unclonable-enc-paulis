@@ -3,10 +3,11 @@ import QIT.Measurements.Naimark
 import QIT.Nonlocality.ProjectiveRealization
 
 /-!
-# Abstract proof: normalized Choi states and simultaneous local Naimark dilation
+# §4.1: normalized Choi states and simultaneous local Naimark dilation
 
-The lemmas here use Lean-QIT's concrete Choi convention and prove the trace
-identities needed later without appealing to informal index notation.
+Theorem 2.1 is expressed in Lean-QIT's Choi convention. The product of the
+two local Naimark embeddings preserves the joint measurement probabilities
+in the ricochet reduction.
 -/
 
 open scoped ComplexOrder MatrixOrder Kronecker
@@ -136,7 +137,7 @@ theorem trace_map_mul_eq_trace_transpose_kronecker_choi
       rw [hkronecker]
       simp [Matrix.sum_mul, Matrix.trace_sum, Matrix.trace_smul]
 
-/-- The normalized Choi matrix of a channel, bundled as a density state. -/
+/-- The normalized Choi state of a channel as in Theorem 2.1. -/
 def normalizedChoi [Nonempty a] (Φ : Channel a b) : State (a × b) where
   matrix := ((Fintype.card a : ℝ)⁻¹ : ℂ) • MatrixMap.choi Φ.map
   pos := Matrix.PosSemidef.smul Φ.completelyPositive (by positivity)
@@ -152,8 +153,8 @@ theorem normalizedChoi_matrix [Nonempty a] (Φ : Channel a b) :
       ((Fintype.card a : ℝ)⁻¹ : ℂ) • MatrixMap.choi Φ.map :=
   rfl
 
-/-- Born-rule identity after moving the inverse input dimension into the
-normalized Choi state. -/
+/-- The normalized Choi identity of Theorem 2.1 applied to the input
+scaled by the inverse dimension, as in equation (19). -/
 theorem trace_map_normalized_mul_eq_normalizedChoi
     [Nonempty a] (Φ : Channel a b) (X : CMatrix a) (E : CMatrix b) :
     (Φ.map (((Fintype.card a : ℝ)⁻¹ : ℂ) • X) * E).trace =

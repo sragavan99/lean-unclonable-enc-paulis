@@ -5,11 +5,11 @@ import Mathlib.Analysis.CStarAlgebra.Matrix
 import Mathlib.Tactic
 
 /-!
-# Abstract reflection encryption
+# Reflection-family generalisation of the Pauli scheme
 
-This module formalizes the finite-key construction used by the security proof.
-The encoding observables are arbitrary traceless Hermitian reflections.  Their
-only joint algebraic datum is the commute--anticommute matrix `Gamma`.
+The construction of §3 extends to a finite uniform key set of traceless
+Hermitian reflections. Proof A of Lemma 4.4 assumes commutation signs and
+Proof B assumes Hilbert--Schmidt orthogonality.
 -/
 
 open scoped BigOperators ComplexOrder MatrixOrder NNReal Matrix.Norms.L2Operator
@@ -39,93 +39,13 @@ theorem bitSign_mul_self (b : Bool) : bitSign b * bitSign b = 1 := by
 theorem bitSign_neg (b : Bool) : bitSign (!b) = -bitSign b := by
   cases b <;> norm_num [bitSign]
 
-/-- A finite family of traceless Hermitian reflections, together with the
-matrix recording their pairwise commute--anticommute scalars. -/
+/-- A finite family of traceless Hermitian reflections. -/
 structure ReflectionFamily (κ : Type uκ) (h : Type uh)
     [Fintype κ] [DecidableEq κ] [Fintype h] [DecidableEq h] where
   Q : κ → CMatrix h
-  Gamma : CMatrix κ
   Q_hermitian : ∀ θ, (Q θ).IsHermitian
   Q_involution : ∀ θ, Q θ * Q θ = 1
   Q_trace_zero : ∀ θ, (Q θ).trace = 0
-  commutation : ∀ φ θ,
-    Q φ * Q θ = Gamma φ θ • (Q θ * Q φ)
-
-namespace ReflectionFamily
-
-variable {κ : Type uκ} {h : Type uh}
-variable [Fintype κ] [DecidableEq κ] [Nonempty κ]
-variable [Fintype h] [DecidableEq h] [Nonempty h]
-
-variable (F : ReflectionFamily κ h)
-
-/-- Every diagonal entry of the commutation matrix is derived to be `+1`. -/
-@[simp]
-theorem Gamma_diag (θ : κ) : F.Gamma θ θ = 1 := by
-  have hcomm := F.commutation θ θ
-  rw [F.Q_involution] at hcomm
-  let i : h := Classical.choice (inferInstance : Nonempty h)
-  have hij := congrArg (fun A : CMatrix h => A i i) hcomm
-  simpa [Matrix.one_apply] using hij.symm
-
-/-- The commutation scalar squares to one; this follows from the invertibility
-of the reflections and is not an additional hypothesis. -/
-theorem Gamma_mul_self (φ θ : κ) :
-    F.Gamma φ θ * F.Gamma φ θ = 1 := by
-  let γ : ℂ := F.Gamma φ θ
-  have hcomm : F.Q φ * F.Q θ = γ • (F.Q θ * F.Q φ) :=
-    F.commutation φ θ
-  have hsquare :
-      (F.Q φ * F.Q θ) * (F.Q φ * F.Q θ) =
-        γ • (1 : CMatrix h) := by
-    calc
-      (F.Q φ * F.Q θ) * (F.Q φ * F.Q θ) =
-          (γ • (F.Q θ * F.Q φ)) * (F.Q φ * F.Q θ) := by
-            rw [hcomm]
-      _ = γ • ((F.Q θ * F.Q φ) * (F.Q φ * F.Q θ)) := by
-            rw [Matrix.smul_mul]
-      _ = γ • (1 : CMatrix h) := by
-            congr 1
-            calc
-              (F.Q θ * F.Q φ) * (F.Q φ * F.Q θ) =
-                  F.Q θ * (F.Q φ * F.Q φ) * F.Q θ := by
-                    simp [Matrix.mul_assoc]
-              _ = 1 := by rw [F.Q_involution, Matrix.mul_one, F.Q_involution]
-  have hmat : (1 : CMatrix h) = (γ * γ) • (1 : CMatrix h) := by
-    calc
-      (1 : CMatrix h) = F.Q φ * (F.Q φ * F.Q θ) * F.Q θ := by
-        simp [Matrix.mul_assoc, F.Q_involution]
-      _ = F.Q φ * (γ • (F.Q θ * F.Q φ)) * F.Q θ := by rw [hcomm]
-      _ = γ • ((F.Q φ * F.Q θ) * (F.Q φ * F.Q θ)) := by
-        rw [Matrix.mul_smul, Matrix.smul_mul]
-        congr 1
-        simp [Matrix.mul_assoc]
-      _ = γ • (γ • (1 : CMatrix h)) := by rw [hsquare]
-      _ = (γ * γ) • (1 : CMatrix h) := by rw [smul_smul]
-  let i : h := Classical.choice (inferInstance : Nonempty h)
-  have hij := congrArg (fun A : CMatrix h => A i i) hmat
-  simpa [Matrix.one_apply, γ] using hij.symm
-
-/-- Every entry of `Gamma` is a sign, derived from the reflection relations. -/
-theorem Gamma_eq_one_or_neg_one (φ θ : κ) :
-    F.Gamma φ θ = 1 ∨ F.Gamma φ θ = -1 := by
-  have hfactor :
-      (F.Gamma φ θ - 1) * (F.Gamma φ θ + 1) = 0 := by
-    rw [mul_add, sub_mul]
-    simp [F.Gamma_mul_self φ θ]
-  rcases mul_eq_zero.mp hfactor with h | h
-  · exact Or.inl (sub_eq_zero.mp h)
-  · exact Or.inr (add_eq_zero_iff_eq_neg.mp h)
-
-/-- The commutation matrix has strictly positive L2 operator norm. -/
-theorem Gamma_norm_pos : 0 < ‖F.Gamma‖ := by
-  rw [norm_pos_iff]
-  intro hzero
-  let θ : κ := Classical.choice (inferInstance : Nonempty κ)
-  have hentry := congrArg (fun A : CMatrix κ => A θ θ) hzero
-  simpa [F.Gamma_diag θ] using hentry
-
-end ReflectionFamily
 
 variable {κ : Type uκ} {h : Type uh}
 variable [Fintype κ] [DecidableEq κ] [Nonempty κ]
@@ -203,7 +123,7 @@ theorem reflectionCiphertextState_matrix (F : ReflectionFamily κ h) (θ : κ) (
     (reflectionCiphertextState F θ b).matrix =
       (2 / (Fintype.card h : ℝ)) • reflectionEffect F θ b := rfl
 
-/-- The ciphertext has the paper's exact form `d⁻¹ (I + s_b Q_θ)`. -/
+/-- The reflection-family form of the mixed-state formula in equation (15). -/
 theorem reflectionCiphertextState_matrix_explicit
     (F : ReflectionFamily κ h) (θ : κ) (b : Bool) :
     (reflectionCiphertextState F θ b).matrix =

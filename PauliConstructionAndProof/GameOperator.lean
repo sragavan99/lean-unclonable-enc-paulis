@@ -2,13 +2,11 @@ import QIT.Util.Matrix
 import Mathlib.Tactic
 
 /-!
-# Abstract proof: the reusable game-operator and disagreement layer
+# §4.1: correlation, disagreement, and game operators
 
-This file isolates the algebraic part of the monogamy game.  It assumes three
-families of Hermitian reflections on one finite Hilbert space.  The `Q`
-reflection commutes with every receiver reflection, and Bob's reflections
-commute with Charlie's reflections.  There is deliberately no assumption that
-two Bob reflections, or two Charlie reflections, commute.
+This module realises the averaged operators of Definition 4.3 on the
+dilated game. The three reflection families commute across registers.
+The averaged winning operator is related to the centered game of equation (29).
 -/
 
 open scoped ComplexOrder MatrixOrder
@@ -218,10 +216,10 @@ namespace GameOperatorData
 
 variable (G : GameOperatorData κ h)
 
-/-- Alice--Bob product reflection. -/
+/-- The fixed-key reference--Bob correlation operator from Proposition 4.10. -/
 def B (θ : κ) : CMatrix h := G.Q θ * G.b θ
 
-/-- Alice--Charlie product reflection. -/
+/-- The fixed-key reference--Charlie correlation operator from Proposition 4.10. -/
 def C (θ : κ) : CMatrix h := G.Q θ * G.c θ
 
 /-- The single-key half-difference of the two correctness reflections. -/
@@ -232,21 +230,23 @@ def keyDifference (θ : κ) : CMatrix h :=
 def Pi (θ : κ) : CMatrix h :=
   ((4 : ℝ)⁻¹) • ((1 + G.B θ) * (1 + G.C θ))
 
-/-- The averaged game operator. -/
+/-- The averaged winning operator from the expansion in equation (20). -/
 def Xi : CMatrix h := normalizedAverage G.Pi
 
-/-- The averaged Alice--Bob correlator. -/
-def SB : CMatrix h := normalizedAverage G.B
+/-- The averaged reference--Bob correlation operator of equation (25). -/
+def EB : CMatrix h := normalizedAverage G.B
 
-/-- The averaged Alice--Charlie correlator. -/
-def SC : CMatrix h := normalizedAverage G.C
+/-- The averaged reference--Charlie correlation operator of equation (26). -/
+def EC : CMatrix h := normalizedAverage G.C
 
-/-- The averaged Bob--Charlie correlator. -/
-def Z : CMatrix h := normalizedAverage (fun θ => G.b θ * G.c θ)
+/-- The averaged receiver agreement operator of equation (27). -/
+def EBC : CMatrix h := normalizedAverage (fun θ => G.b θ * G.c θ)
 
-/-- The disagreement operator. -/
-def D : CMatrix h :=
-  normalizedAverage (fun θ => ((2 : ℝ)⁻¹) • (1 - G.b θ * G.c θ))
+/-- The disagreement operator `I - EBC` of equation (28). -/
+def D : CMatrix h := 1 - G.EBC
+
+/-- The centered game operator of equation (29) in arXiv:2607.21551v4. -/
+def centeredGame : CMatrix h := (2 : ℝ)⁻¹ • (G.EB + G.EC - G.D)
 
 theorem B_isHermitian (θ : κ) : (G.B θ).IsHermitian := by
   rw [Matrix.IsHermitian, B, Matrix.conjTranspose_mul,
@@ -361,20 +361,20 @@ theorem Xi_le_one : G.Xi ≤ 1 := by
   intro θ
   exact Matrix.le_iff.mp (G.Pi_le_one θ)
 
-theorem SB_isHermitian : G.SB.IsHermitian :=
+theorem EB_isHermitian : G.EB.IsHermitian :=
   normalizedAverage_isHermitian G.B G.B_isHermitian
 
-theorem SC_isHermitian : G.SC.IsHermitian :=
+theorem EC_isHermitian : G.EC.IsHermitian :=
   normalizedAverage_isHermitian G.C G.C_isHermitian
 
-theorem Z_isHermitian : G.Z.IsHermitian :=
+theorem EBC_isHermitian : G.EBC.IsHermitian :=
   normalizedAverage_isHermitian _ fun θ => G.bc_isHermitian θ θ
 
-theorem D_isHermitian : G.D.IsHermitian := by
-  apply normalizedAverage_isHermitian
-  intro θ
-  apply (Matrix.isHermitian_one.sub (G.bc_isHermitian θ θ)).smul
-  exact IsSelfAdjoint.of_nonneg (by positivity)
+theorem D_isHermitian : G.D.IsHermitian :=
+  Matrix.isHermitian_one.sub G.EBC_isHermitian
+
+theorem centeredGame_isHermitian : G.centeredGame.IsHermitian :=
+  ((G.EB_isHermitian.add G.EC_isHermitian).sub G.D_isHermitian).smul (by simp)
 
 theorem Pi_expansion (θ : κ) :
     G.Pi θ = ((4 : ℝ)⁻¹) •
@@ -382,26 +382,32 @@ theorem Pi_expansion (θ : κ) :
   rw [Pi]
   noncomm_ring [G.B_mul_C θ]
 
-/-- Exact current-paper decomposition of the averaged winning operator. -/
+/-- The operator relation `Xi = (I + centeredGame)/2` behind equation (22). -/
 theorem Xi_decomposition :
-    G.Xi = ((2 : ℝ)⁻¹) • (1 : CMatrix h) +
-      ((4 : ℝ)⁻¹) • (G.SB + G.SC) - ((2 : ℝ)⁻¹) • G.D := by
+    G.Xi = ((2 : ℝ)⁻¹) • ((1 : CMatrix h) + G.centeredGame) := by
   calc
     G.Xi = normalizedAverage (fun θ => ((4 : ℝ)⁻¹) •
         (1 + G.B θ + G.C θ + G.b θ * G.c θ)) := by
       apply congrArg normalizedAverage
       funext θ
       exact G.Pi_expansion θ
-    _ = ((4 : ℝ)⁻¹) • ((1 : CMatrix h) + G.SB + G.SC + G.Z) := by
+    _ = ((4 : ℝ)⁻¹) • ((1 : CMatrix h) + G.EB + G.EC + G.EBC) := by
       rw [normalizedAverage_smul]
       rw [normalizedAverage_add, normalizedAverage_add,
         normalizedAverage_add, normalizedAverage_const]
-      simp only [SB, SC, Z]
-    _ = ((2 : ℝ)⁻¹) • (1 : CMatrix h) +
-        ((4 : ℝ)⁻¹) • (G.SB + G.SC) - ((2 : ℝ)⁻¹) • G.D := by
-      simp only [D, normalizedAverage_smul, normalizedAverage_sub,
-        normalizedAverage_const, Z]
+      simp only [EB, EC, EBC]
+    _ = ((2 : ℝ)⁻¹) • ((1 : CMatrix h) + G.centeredGame) := by
+      simp only [centeredGame, D]
       module
+
+/-- Transfer an upper bound on the centered game to the winning operator. -/
+theorem Xi_le_of_centeredGame_le {α : ℝ}
+    (hbound : G.centeredGame ≤ α • (1 : CMatrix h)) :
+    G.Xi ≤ ((2 : ℝ)⁻¹ + (2 : ℝ)⁻¹ * α) • (1 : CMatrix h) := by
+  rw [G.Xi_decomposition, Matrix.le_iff]
+  convert (Matrix.le_iff.mp hbound).smul (by norm_num : (0 : ℝ) ≤ (2 : ℝ)⁻¹)
+    using 1
+  module
 
 @[simp]
 theorem keyDifference_sq (θ : κ) :
@@ -415,30 +421,22 @@ theorem keyDifference_sq (θ : κ) :
   simp only [Matrix.smul_mul, Matrix.one_mul, smul_smul]
   module
 
-/-- `D` is the average quadratic disagreement. -/
-theorem D_eq_normalizedAverage_keyDifference_sq :
-    G.D = normalizedAverage (fun θ => G.keyDifference θ ^ 2) := by
-  rw [show (fun θ => G.keyDifference θ ^ 2) =
-      (fun θ => ((2 : ℝ)⁻¹) • (1 - G.b θ * G.c θ)) by
-    funext θ
-    exact G.keyDifference_sq θ]
-  rfl
+/-- `D` is twice the average quadratic disagreement. -/
+theorem D_eq_two_smul_normalizedAverage_keyDifference_sq :
+    G.D = (2 : ℝ) • normalizedAverage (fun θ => G.keyDifference θ ^ 2) := by
+  rw [D, EBC, one_sub_normalizedAverage]
+  simp_rw [G.keyDifference_sq]
+  rw [normalizedAverage_smul, smul_smul]
+  norm_num
 
-/-- The average key difference is exactly `(S_B-S_C)/2`. -/
+/-- The average key difference is exactly `(E_B-E_C)/2`. -/
 theorem normalizedAverage_keyDifference :
-    normalizedAverage G.keyDifference = ((2 : ℝ)⁻¹) • (G.SB - G.SC) := by
+    normalizedAverage G.keyDifference = ((2 : ℝ)⁻¹) • (G.EB - G.EC) := by
   rw [show G.keyDifference =
       (fun θ => ((2 : ℝ)⁻¹) • (G.B θ - G.C θ)) by
     rfl]
   rw [normalizedAverage_smul, normalizedAverage_sub]
   rfl
-
-/-- The word-moment correlator is `I-2D`. -/
-theorem Z_eq_one_sub_two_D :
-    G.Z = 1 - (2 : ℝ) • G.D := by
-  simp only [D, normalizedAverage_smul, normalizedAverage_sub,
-    normalizedAverage_const, Z]
-  module
 
 theorem keyDifference_sq_posSemidef (θ : κ) :
     (G.keyDifference θ ^ 2).PosSemidef := by
@@ -456,17 +454,16 @@ theorem keyDifference_sq_le_one (θ : κ) : G.keyDifference θ ^ 2 ≤ 1 := by
   rwa [heq]
 
 theorem D_posSemidef : G.D.PosSemidef := by
-  rw [G.D_eq_normalizedAverage_keyDifference_sq]
-  exact normalizedAverage_posSemidef _ G.keyDifference_sq_posSemidef
+  rw [G.D_eq_two_smul_normalizedAverage_keyDifference_sq]
+  exact (normalizedAverage_posSemidef _ G.keyDifference_sq_posSemidef).smul (by norm_num)
 
 theorem D_nonneg : 0 ≤ G.D := G.D_posSemidef.nonneg
 
-theorem D_le_one : G.D ≤ 1 := by
-  rw [G.D_eq_normalizedAverage_keyDifference_sq, Matrix.le_iff,
-    one_sub_normalizedAverage]
-  apply normalizedAverage_posSemidef
-  intro θ
-  exact Matrix.le_iff.mp (G.keyDifference_sq_le_one θ)
+theorem D_le_two : G.D ≤ (2 : ℝ) • (1 : CMatrix h) := by
+  rw [G.D_eq_two_smul_normalizedAverage_keyDifference_sq, Matrix.le_iff,
+    ← smul_sub, one_sub_normalizedAverage]
+  apply Matrix.PosSemidef.smul _ (by norm_num : (0 : ℝ) ≤ 2)
+  exact normalizedAverage_posSemidef _ fun θ => Matrix.le_iff.mp (G.keyDifference_sq_le_one θ)
 
 /-- Positive product witnessing the first disagreement order constraint. -/
 theorem keyDifference_sq_add_factorization (θ : κ) :
@@ -545,25 +542,24 @@ theorem keyDifference_sq_sub_posSemidef (θ : κ) :
     norm_num
   rwa [← heq]
 
-/-- `D ≽ (S_B-S_C)/2`, obtained by averaging commuting positive
-projector products key by key. -/
-theorem half_SB_sub_SC_le_D :
-    ((2 : ℝ)⁻¹) • (G.SB - G.SC) ≤ G.D := by
-  rw [← G.normalizedAverage_keyDifference,
-    G.D_eq_normalizedAverage_keyDifference_sq, Matrix.le_iff,
-    ← normalizedAverage_sub]
-  exact normalizedAverage_posSemidef _ G.keyDifference_sq_sub_posSemidef
+/-- The upper order bound in Proposition 4.10 follows from the averaged
+correctness pattern in which Bob is wrong and Charlie is right. -/
+theorem EB_sub_EC_le_D : G.EB - G.EC ≤ G.D := by
+  have hdiff : G.EB - G.EC = (2 : ℝ) • normalizedAverage G.keyDifference := by
+    rw [G.normalizedAverage_keyDifference, smul_smul]
+    norm_num
+  rw [hdiff, G.D_eq_two_smul_normalizedAverage_keyDifference_sq, Matrix.le_iff,
+    ← smul_sub, ← normalizedAverage_sub]
+  exact (normalizedAverage_posSemidef _ G.keyDifference_sq_sub_posSemidef).smul (by norm_num)
 
-/-- `D ≽ (S_C-S_B)/2`, with no same-receiver commutation assumption. -/
-theorem half_SC_sub_SB_le_D :
-    ((2 : ℝ)⁻¹) • (G.SC - G.SB) ≤ G.D := by
-  rw [show ((2 : ℝ)⁻¹) • (G.SC - G.SB) =
-      -normalizedAverage G.keyDifference by
-        rw [G.normalizedAverage_keyDifference]
-        module,
-    G.D_eq_normalizedAverage_keyDifference_sq, Matrix.le_iff]
-  rw [sub_neg_eq_add, ← normalizedAverage_add]
-  exact normalizedAverage_posSemidef _ G.keyDifference_sq_add_posSemidef
+/-- The lower order bound in Proposition 4.10, written as `EC - EB ≤ D`. -/
+theorem EC_sub_EB_le_D : G.EC - G.EB ≤ G.D := by
+  have hdiff : G.EC - G.EB = (2 : ℝ) • -normalizedAverage G.keyDifference := by
+    rw [G.normalizedAverage_keyDifference]
+    module
+  rw [hdiff, G.D_eq_two_smul_normalizedAverage_keyDifference_sq, Matrix.le_iff,
+    ← smul_sub, sub_neg_eq_add, ← normalizedAverage_add]
+  exact (normalizedAverage_posSemidef _ G.keyDifference_sq_add_posSemidef).smul (by norm_num)
 
 end GameOperatorData
 

@@ -1,7 +1,7 @@
 import UE.Definitions
 
 /-!
-# Security and the uncloneable-bit existence conjecture
+# Security of one-bit unclonable encryption
 -/
 
 open Filter
@@ -32,8 +32,9 @@ def PolynomiallyBoundedCipherDimension (E : BitEncryptionFamily) : Prop :=
   ∃ C degree : ℕ, ∀ n : ℕ,
     E.cipherDim n ≤ 2 ^ (C * (n + 1) ^ degree)
 
-/-- Universal information-theoretic cloning security with additive error `ε`.
-The bound ranges over every finite-dimensional admissible cloning attack. -/
+/-- Information-theoretic unclonable indistinguishability in the fixed-message
+one-bit game (Definition 2.11 of arXiv:2607.21551v4). The additive bound
+`ε` applies to every admissible finite-dimensional attack. -/
 def DeltaSecure (E : BitEncryptionFamily) (ε : ℕ → ℝ) : Prop :=
   ∀ n (T : CloningAttack E n),
     cloningSuccess T ≤ (2 : ℝ)⁻¹ + ε n
@@ -60,7 +61,7 @@ structure SecureBitEncryption where
   /-- Every finite-dimensional cloning attack satisfies the security bound. -/
   security : encryption.DeltaSecure error
 
-/-- The information-theoretic uncloneable-bit existence conjecture. -/
+/-- Existence of an information-theoretically secure one-bit scheme. -/
 def UncloneableBitExists : Prop :=
   Nonempty SecureBitEncryption
 

@@ -16,9 +16,9 @@ direction used in the Pauli-to-Haar security reduction.
 
 open MeasureTheory
 
-namespace UE.PauliConstructionAndProof
+namespace UE.HaarConstructionAndProof
 
-open QIT
+open QIT UE.PauliConstructionAndProof
 
 noncomputable section
 
@@ -96,4 +96,4 @@ theorem closedSubgroupHaar_integral_mul_right {q : ℕ}
 
 end
 
-end UE.PauliConstructionAndProof
+end UE.HaarConstructionAndProof

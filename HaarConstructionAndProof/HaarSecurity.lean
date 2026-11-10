@@ -4,18 +4,18 @@ import PauliConstructionAndProof.Assembly
 /-!
 # Pauli-to-Haar security reduction
 
-For a fixed Haar key `V`, preconjugating a Pauli ciphertext by `V` and asking
-the original Haar measurements at `V * U_theta` gives a protected Pauli
-attack.  The exact Pauli bound is integrated over `V`; finite sums commute
-with the integral and right Haar invariance removes each `U_theta`.
+For a fixed Haar key `V`, preconjugating a Pauli ciphertext by `V` and using
+the Haar measurements at `V * U_theta` gives a Pauli attack. The bound in
+Theorem 4.1 of ARS26 is integrated over `V`. Right Haar invariance removes
+each `U_theta` from the resulting average.
 -/
 
 open scoped ComplexOrder MatrixOrder
 open MeasureTheory
 
-namespace UE.PauliConstructionAndProof
+namespace UE.HaarConstructionAndProof
 
-open QIT UE
+open QIT UE UE.PauliConstructionAndProof
 
 noncomputable section
 
@@ -119,7 +119,7 @@ theorem conjugationChannel_applyState {a : Type*} [Fintype a] [DecidableEq a]
     (U : CMatrix a) * rho.matrix * star (U : CMatrix a)
   rw [Fintype.sum_unique, Matrix.star_eq_conjTranspose]
 
-/-- The protected Pauli attack obtained by freezing the left Haar key `V`. -/
+/-- The Pauli attack obtained by fixing the left Haar key `V`. -/
 def haarAttackAsPauli (H : HaarSubgroupFamily) (n : ℕ)
     (attack : CloningAttack (haarBitEncryption H) n) (V : H.group n) :
     CloningAttack pauliBitEncryption n where
@@ -165,7 +165,7 @@ theorem haarAttackAsPauli_keyScore (H : HaarSubgroupFamily) (n : ℕ)
         (attack.charlieMeasure (V * haarPauliRepresentative H n k))).prob
           rho (b, b)) hstate
 
-/-- The success of the derived protected Pauli attack is the finite average of
+/-- The success of the derived Pauli attack is the finite average of
 right-translated Haar fixed-key scores. -/
 theorem haarAttackAsPauli_success (H : HaarSubgroupFamily) (n : ℕ)
     (attack : CloningAttack (haarBitEncryption H) n) (V : H.group n) :
@@ -194,7 +194,7 @@ theorem haar_translated_pauliAverage_le (H : HaarSubgroupFamily) (n : ℕ)
       (2 : ℝ)⁻¹ + (2 : ℝ)⁻¹ * Real.sqrt
         (((2 : ℝ) ^ (n + 1)) / ((4 : ℝ) ^ (n + 1) - 1)) := by
   rw [← haarAttackAsPauli_success H n attack V]
-  exact cloningSuccess_le_exact n (haarAttackAsPauli H n attack V)
+  exact cloningSuccess_le_exact_ragavan n (haarAttackAsPauli H n attack V)
 
 /-- A right translate of the Haar attack's fixed-key score is integrable. -/
 theorem haarTranslatedKeyScore_integrable (H : HaarSubgroupFamily) (n : ℕ)
@@ -251,11 +251,10 @@ theorem integral_haarPauliAverage_eq_cloningSuccess
   field_simp [hden]
   rfl
 
-/-- Exact security for Haar conjugate-subspace encryption over every closed
-subgroup family containing the Clifford subgroup.  The paper parameter is the
-positive qubit count `q = n + 1`, so `d = 2^(n+1)` and the Pauli orbit has
-`M = 4^(n+1) - 1` nonidentity elements. -/
-theorem haarCloningSuccess_le_exact (H : HaarSubgroupFamily) (n : ℕ)
+/-- The Haar extension of the exact bound in Theorem 4.1 for families of
+closed subgroups containing the corresponding Clifford groups. The reduction
+uses the Proof A Pauli endpoint at `q = n + 1` qubits. -/
+theorem haarCloningSuccess_le_exact_family (H : HaarSubgroupFamily) (n : ℕ)
     (attack : CloningAttack (haarBitEncryption H) n) :
     cloningSuccess attack ≤
       (2 : ℝ)⁻¹ + (2 : ℝ)⁻¹ * Real.sqrt
@@ -269,6 +268,54 @@ theorem haarCloningSuccess_le_exact (H : HaarSubgroupFamily) (n : ℕ)
     (haar_translated_pauliAverage_le H n attack)
   simpa using hbound
 
+/-- Compatibility name for the family-level theorem. -/
+theorem haarCloningSuccess_le_exact (H : HaarSubgroupFamily) (n : ℕ)
+    (attack : CloningAttack (haarBitEncryption H) n) :
+    cloningSuccess attack ≤
+      (2 : ℝ)⁻¹ + (2 : ℝ)⁻¹ * Real.sqrt
+        (((2 : ℝ) ^ (n + 1)) / ((4 : ℝ) ^ (n + 1) - 1)) :=
+  haarCloningSuccess_le_exact_family H n attack
+
+/-- At the selected parameter, the conditional score of an attack against
+the fixed wrapper is exactly the operational score obtained by conjugating
+the first-`Z` ciphertext with the supplied key `U ∈ H`. -/
+theorem fixedHaar_keyScore (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup)
+    (attack : CloningAttack (fixedHaarBitEncryption n H hH) n)
+    (U : H) :
+    attack.keyScore (fixedHaarKey n H hH U) =
+      (2 : ℝ)⁻¹ * ∑ b : Bool,
+        ((jointPOVM
+            (attack.bobMeasure (fixedHaarKey n H hH U))
+            (attack.charlieMeasure (fixedHaarKey n H hH U))).prob
+          (attack.pirate.applyState
+            (conjugateState
+              (pauliCiphertextState (firstZPauliKey n) b) U.1))
+          (b, b) : ℝ) := by
+  unfold CloningAttack.keyScore
+  simp only [fixedHaarBitEncryption_encrypt]
+  rfl
+
+/-- The Haar extension at one parameter. For a closed subgroup
+`H ≤ U(2^(n+1))` containing the `(n+1)`-qubit Clifford subgroup, every attack
+satisfies the exact bound in Theorem 4.1.
+
+The family wrapper embeds the fixed scheme in the common attack interface.
+The `fixedHaar...` lemmas identify its selected key distribution, ciphertext,
+decoder, and score. -/
+theorem haarCloningSuccess_le_exact_fixed (n : ℕ)
+    (H : ClosedSubgroup
+      (Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ))
+    (hH : cliffordSubgroup (n + 1) ≤ H.toSubgroup)
+    (attack : CloningAttack (fixedHaarBitEncryption n H hH) n) :
+    cloningSuccess attack ≤
+      (2 : ℝ)⁻¹ + (2 : ℝ)⁻¹ * Real.sqrt
+        (((2 : ℝ) ^ (n + 1)) / ((4 : ℝ) ^ (n + 1) - 1)) :=
+  haarCloningSuccess_le_exact_family
+    (fixedHaarSubgroupFamily n H hH) n attack
+
 /-- Full-unitary Haar security is the top-subgroup instance of the arbitrary
 closed-subgroup theorem. -/
 theorem fullUnitaryHaar_cloningSuccess_le_exact (n : ℕ)
@@ -277,7 +324,7 @@ theorem fullUnitaryHaar_cloningSuccess_le_exact (n : ℕ)
     cloningSuccess attack ≤
       (2 : ℝ)⁻¹ + (2 : ℝ)⁻¹ * Real.sqrt
         (((2 : ℝ) ^ (n + 1)) / ((4 : ℝ) ^ (n + 1) - 1)) :=
-  haarCloningSuccess_le_exact fullUnitaryHaarFamily n attack
+  haarCloningSuccess_le_exact_family fullUnitaryHaarFamily n attack
 
 /-- Every admitted Haar subgroup family gives a secure bit encryption with
 the same exact negligible correction as the finite Pauli construction. -/
@@ -291,7 +338,8 @@ def haarConstructionSecure (H : HaarSubgroupFamily) : SecureBitEncryption where
   error_negligible := pauliSecurityError_negligible
   security := by
     intro n attack
-    simpa [pauliSecurityError] using haarCloningSuccess_le_exact H n attack
+    simpa [pauliSecurityError] using
+      haarCloningSuccess_le_exact_family H n attack
 
 /-- Secure-bit-encryption witness for Haar measure on the full unitary group. -/
 def fullUnitaryHaarSecure : SecureBitEncryption :=
@@ -299,4 +347,4 @@ def fullUnitaryHaarSecure : SecureBitEncryption :=
 
 end
 
-end UE.PauliConstructionAndProof
+end UE.HaarConstructionAndProof

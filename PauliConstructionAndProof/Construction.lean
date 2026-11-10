@@ -4,11 +4,10 @@ import PauliConstructionAndProof.FiniteProbability
 import PauliConstructionAndProof.ReflectionConstruction
 
 /-!
-# The Pauli bit-encryption construction
+# §3: the one-bit Pauli construction
 
-This file packages the nonidentity Hermitian Paulis as the finite key space,
-constructs the two eigenspace states and their binary decoding measurement,
-and proves exact correctness and the ciphertext-dimension bound.
+This file formalises the uniform key distribution, the mixed eigenspace
+ciphertext, the projective decoder, and perfect correctness (Lemma 3.1).
 -/
 
 open scoped ComplexOrder MatrixOrder NNReal
@@ -83,7 +82,7 @@ theorem pauliPOVM_effects {q : ℕ} (k : PauliKey q) (b : Bool) :
     exact pauliDecryptionEffect_complement k true
   · rfl
 
-/-- The normalized state supported on the selected Pauli eigenspace. -/
+/-- The normalized state on the selected Pauli eigenspace from §3. -/
 def pauliCiphertextState {q : ℕ} (k : PauliKey q) (b : Bool) :
     State (Fin (2 ^ q)) where
   matrix := (2 / (2 ^ q : ℝ)) • pauliDecryptionEffect k b
@@ -98,7 +97,7 @@ theorem pauliCiphertextState_matrix {q : ℕ} (k : PauliKey q) (b : Bool) :
       (2 / (2 ^ q : ℝ)) • pauliDecryptionEffect k b :=
   rfl
 
-/-- The ciphertext is exactly `d⁻¹ (I + (-1)^b P)`. -/
+/-- The mixed-state formula in equation (15), `d⁻¹ (I + (-1)^b P)`. -/
 theorem pauliCiphertextState_matrix_explicit {q : ℕ}
     (k : PauliKey q) (b : Bool) :
     (pauliCiphertextState k b).matrix =
@@ -115,7 +114,7 @@ theorem pauliCiphertextState_matrix_explicit {q : ℕ}
 instance pauliKey_nonempty (n : ℕ) : Nonempty (PauliKey (n + 1)) :=
   ⟨firstPauliKey n⟩
 
-/-- The concrete Pauli bit-encryption family, with `n+1` qubits. -/
+/-- The Pauli scheme of §3 with `n + 1` qubits at Lean index `n`. -/
 def pauliBitEncryption : BitEncryptionFamily where
   cipherDim n := 2 ^ (n + 1)
   cipherDim_pos n := by positivity
@@ -155,7 +154,7 @@ theorem pauliPOVM_honest_probability {q : ℕ}
     Matrix.trace_smul, pauliDecryptionEffect_trace]
   norm_num [Complex.real_smul]
 
-/-- Honest Pauli encryption and decryption is perfectly correct. -/
+/-- Perfect correctness of the Pauli eigenspace decoder (Lemma 3.1). -/
 theorem pauliPerfectlyCorrect :
     pauliBitEncryption.PerfectlyCorrect pauliDecryption := by
   intro n k b

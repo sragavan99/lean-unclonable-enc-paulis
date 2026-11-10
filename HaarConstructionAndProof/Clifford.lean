@@ -21,9 +21,9 @@ in the normalizer.
 
 open scoped ComplexOrder MatrixOrder
 
-namespace UE.PauliConstructionAndProof
+namespace UE.HaarConstructionAndProof
 
-open QIT
+open QIT UE.PauliConstructionAndProof
 
 noncomputable section
 
@@ -361,8 +361,8 @@ theorem exists_common_anticommuting_of_firstZ_commutes (q : ℕ)
     · simp [firstZLabel, firstXLabel, symplectic, singleSymplectic]
     · simp [firstXLabel, symplectic, singleSymplectic]
 
-/-- Clifford transitivity with the exact positive sign required by the
-ciphertext identity.  The paper's positive qubit parameter is `q+1` here. -/
+/-- Clifford transitivity on `q + 1` qubits with the positive sign
+required by the ciphertext identity in the Haar reduction. -/
 theorem exists_clifford_conjugates_firstZ (q : ℕ)
     (k : PauliKey (q + 1)) :
     ∃ U : Matrix.unitaryGroup (Fin (2 ^ (q + 1))) ℂ,
@@ -392,4 +392,4 @@ theorem exists_clifford_conjugates_firstZ (q : ℕ)
 
 end
 
-end UE.PauliConstructionAndProof
+end UE.HaarConstructionAndProof

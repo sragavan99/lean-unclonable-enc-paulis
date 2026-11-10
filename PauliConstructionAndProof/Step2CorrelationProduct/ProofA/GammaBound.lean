@@ -1,15 +1,15 @@
-import PauliConstructionAndProof.AttackGame
+import PauliConstructionAndProof.Step1RicochetReduction.AttackGame
 import PauliConstructionAndProof.MatrixInfrastructure
+import PauliConstructionAndProof.Step2CorrelationProduct.ProofA.CommutationData
 
 /-!
-# The generic Gamma block-factorization bound
+# §4.2.1: Proof A of the correlation-product bound
 
-The proof is the dimension-free block factorization
-`S_B S_C = M⁻² M_C (Gamma ⊗ I) M_B`.  The amplification norm is exact,
-and both outer block matrices have norm `sqrt M`.
+For `K` keys the factorization is `EB * EC = K⁻² M_C (Gamma ⊗ I) M_B`.
+In the dilated reflection game both outer block matrices have norm `sqrt K`.
 -/
 
-open scoped BigOperators ComplexOrder MatrixOrder Matrix.Norms.L2Operator
+open scoped BigOperators ComplexOrder MatrixOrder Matrix.Norms.L2Operator Kronecker
 
 namespace UE.PauliConstructionAndProof
 
@@ -163,10 +163,10 @@ theorem game_B_mul_C_commutation
         _ = (G.Q φ * G.c φ) * (G.Q θ * G.b θ) := by
               rw [← G.Q_comm_b θ θ]
 
-/-- Abstract `S_B S_C` estimate with no dimension-losing triangle bound. -/
-theorem game_SB_mul_SC_norm_le
+/-- Proof A of Lemma 4.4 for abstract commutation signs. -/
+theorem game_EB_mul_EC_norm_le
     (hQQ : ∀ θ φ, G.Q θ * G.Q φ = Gamma φ θ • (G.Q φ * G.Q θ)) :
-    ‖G.SB * G.SC‖ ≤ ‖Gamma‖ / (Fintype.card κ : ℝ) := by
+    ‖G.EB * G.EC‖ ≤ ‖Gamma‖ / (Fintype.card κ : ℝ) := by
   have hB : ∀ θ, IsUnitaryMatrix (G.B θ) := fun θ =>
     isUnitaryMatrix_of_hermitian_involution (G.B_isHermitian θ) (G.B_mul_self θ)
   have hC : ∀ θ, IsUnitaryMatrix (G.C θ) := fun θ =>
@@ -174,10 +174,10 @@ theorem game_SB_mul_SC_norm_le
   have hbound := normalizedSignedDoubleSum_norm_le Gamma G.B G.C hB hC
     (game_B_mul_C_commutation G Gamma hQQ)
   have heq :
-      G.SB * G.SC =
+      G.EB * G.EC =
         ((Fintype.card κ : ℝ)⁻¹ ^ 2) •
           ∑ θ, ∑ φ, G.B θ * G.C φ := by
-    simp only [GameOperatorData.SB, GameOperatorData.SC, normalizedAverage,
+    simp only [GameOperatorData.EB, GameOperatorData.EC, normalizedAverage,
       Matrix.smul_mul, Matrix.mul_smul, smul_smul]
     rw [Matrix.sum_mul]
     simp_rw [Matrix.mul_sum]
@@ -190,13 +190,40 @@ variable [Fintype bob] [DecidableEq bob] [Nonempty bob]
 variable [Fintype charlie] [DecidableEq charlie] [Nonempty charlie]
 variable {F : ReflectionFamily κ h}
 
-/-- Concrete generic-attack instance of the abstract Gamma estimate. -/
-theorem reflectionAttack_SB_mul_SC_norm_le
-    (attack : ReflectionCloningAttack F bob charlie) :
-    ‖(reflectionAttackGameData attack).SB * (reflectionAttackGameData attack).SC‖ ≤
-      ‖F.Gamma‖ / (Fintype.card κ : ℝ) := by
-  apply game_SB_mul_SC_norm_le (reflectionAttackGameData attack) F.Gamma
-  exact reflectionAttackAlice_commutation attack
+/-- Transposition reverses the index orientation: the scalar for
+`Q_θᵀ Q_φᵀ` is `Gamma φ θ`. -/
+theorem reflectionAttackAlice_commutation
+    (R : RagavanData F) (attack : ReflectionCloningAttack F bob charlie)
+    (θ φ : κ) :
+    reflectionAttackAlice attack θ * reflectionAttackAlice attack φ =
+      R.Gamma φ θ •
+        (reflectionAttackAlice attack φ * reflectionAttackAlice attack θ) := by
+  let Qθ := Matrix.transpose (F.Q θ)
+  let Qφ := Matrix.transpose (F.Q φ)
+  change
+    (Qθ ⊗ₖ (1 : CMatrix
+      (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))) *
+        (Qφ ⊗ₖ (1 : CMatrix
+          (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))) =
+      R.Gamma φ θ •
+        ((Qφ ⊗ₖ (1 : CMatrix
+          (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))) *
+          (Qθ ⊗ₖ (1 : CMatrix
+            (ReflectionAttackBobSpace attack × ReflectionAttackCharlieSpace attack))))
+  rw [← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul]
+  have htranspose := congrArg Matrix.transpose (R.commutation φ θ)
+  have hQ : Qθ * Qφ = R.Gamma φ θ • (Qφ * Qθ) := by
+    simpa [Qθ, Qφ, Matrix.transpose_mul, Matrix.transpose_smul] using htranspose
+  rw [hQ]
+  simp [Matrix.smul_kronecker]
+
+/-- The Proof A product bound for a reflection-family attack. -/
+theorem reflectionAttack_EB_mul_EC_norm_le
+    (R : RagavanData F) (attack : ReflectionCloningAttack F bob charlie) :
+    ‖(reflectionAttackGameData attack).EB * (reflectionAttackGameData attack).EC‖ ≤
+      ‖R.Gamma‖ / (Fintype.card κ : ℝ) := by
+  apply game_EB_mul_EC_norm_le (reflectionAttackGameData attack) R.Gamma
+  exact reflectionAttackAlice_commutation R attack
 
 end
 

@@ -1,6 +1,6 @@
 name = "lean-unclonable-enc-paulis"
 version = "0.1.0"
-defaultTargets = ["UE"]
+defaultTargets = ["UE", "PauliConstructionAndProof", "HaarConstructionAndProof", "Examples"]
 
 [[require]]
 name = "QIT"
@@ -15,3 +15,6 @@ name = "PauliConstructionAndProof"
 
 [[lean_lib]]
 name = "HaarConstructionAndProof"
+
+[[lean_lib]]
+name = "Examples"
